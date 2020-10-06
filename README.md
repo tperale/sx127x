@@ -18,7 +18,7 @@ If you add this driver in the `/arch/dev/` folder of *contiki-ng* (where all the
 add the following line to your `Makefile`.
 
 ```
-MODULES += $(CONTIKI_NG_DRIVERS_DIR)/sx127x
+MODULES += $(CONTIKI_NG_DRIVERS_DIR)/sx127x/src
 ```
 
 But you can add it whereever you want as long as you refer it from the makefile.
