@@ -8,7 +8,7 @@ ROOT = ../..
 CONTIKI = $(ROOT)/contiki-ng
 
 include $(CONTIKI)/Makefile.dir-variables
-MODULES += $(ROOT)/sx127x
+MODULES += $(ROOT)/src/ # SX127X Driver
 MODULES += $(CONTIKI_NG_SERVICES_DIR)/shell
 CFLAGS += -I/usr/arm-none-eabi/include
 

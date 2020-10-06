@@ -4,7 +4,8 @@ all: $(CONTIKI_PROJECT)
 TARGET = zoul
 BOARD = remote-revb
 
-CONTIKI=../../
+ROOT = ../..
+CONTIKI = $(ROOT)/contiki-ng
 
  # force Orchestra from command line
 MAKE_WITH_ORCHESTRA ?= 0
@@ -22,7 +23,7 @@ MAKE_ROUTING = MAKE_ROUTING_RPL_LITE
 
 include $(CONTIKI)/Makefile.dir-variables
 MODULES += $(CONTIKI_NG_SERVICES_DIR)/shell
-MODULES += $(CONTIKI_NG_DRIVERS_DIR)/sx127x/src
+MODULES += $(ROOT)/src/ # SX127X Driver
 CFLAGS += -I/usr/arm-none-eabi/include
 
 ifeq ($(MAKE_WITH_ORCHESTRA),1)
