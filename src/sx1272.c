@@ -22,23 +22,12 @@
 
 #define BUFFER_SIZE 256
 
-/* spi_device_t sx1272_spi = { */
-/*   .spi_controller = SX1272_SPI_CONTROLLER, */
-/*   .pin_spi_sck = GPIO_PORT_PIN_TO_GPIO_HAL_PIN(SX1272_SPI_SCK_PORT, SX1272_SPI_SCK), */
-/*   .pin_spi_miso = GPIO_PORT_PIN_TO_GPIO_HAL_PIN(SX1272_SPI_MISO_PORT, SX1272_SPI_MISO), */
-/*   .pin_spi_mosi = GPIO_PORT_PIN_TO_GPIO_HAL_PIN(SX1272_SPI_MOSI_PORT, SX1272_SPI_MOSI), */
-/*   .pin_spi_cs = GPIO_PORT_PIN_TO_GPIO_HAL_PIN(SX1272_SPI_CS_PORT, SX1272_SPI_CS), */
-/*   .spi_bit_rate = SX1272_SPI_BITRATE, */
-/*   .spi_pha = SX1272_SPI_PHASE, */
-/*   .spi_pol = SX1272_SPI_POL, */
-/* }; */
-
 spi_device_t sx1272_spi = {
-  .spi_controller = 1,
-  .pin_spi_sck = GPIO_PORT_PIN_TO_GPIO_HAL_PIN(SPI1_CLK_PORT, SPI1_CLK_PIN),
-  .pin_spi_miso = GPIO_PORT_PIN_TO_GPIO_HAL_PIN(SPI1_RX_PORT, SPI1_RX_PIN),
-  .pin_spi_mosi = GPIO_PORT_PIN_TO_GPIO_HAL_PIN(SPI1_TX_PORT, SPI1_TX_PIN),
-  .pin_spi_cs = GPIO_PORT_PIN_TO_GPIO_HAL_PIN(GPIO_B_NUM, 6),
+  .spi_controller = SX1272_SPI_CONTROLLER,
+  .pin_spi_sck = GPIO_PORT_PIN_TO_GPIO_HAL_PIN(SX1272_SPI_SCK_PORT, SX1272_SPI_SCK),
+  .pin_spi_miso = GPIO_PORT_PIN_TO_GPIO_HAL_PIN(SX1272_SPI_MISO_PORT, SX1272_SPI_MISO),
+  .pin_spi_mosi = GPIO_PORT_PIN_TO_GPIO_HAL_PIN(SX1272_SPI_MOSI_PORT, SX1272_SPI_MOSI),
+  .pin_spi_cs = GPIO_PORT_PIN_TO_GPIO_HAL_PIN(SX1272_SPI_CS_PORT, SX1272_SPI_CS),
   .spi_bit_rate = SX1272_SPI_BITRATE,
   .spi_pha = SX1272_SPI_PHASE,
   .spi_pol = SX1272_SPI_POL,
