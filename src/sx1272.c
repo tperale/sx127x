@@ -95,27 +95,6 @@ static void sx1272_rx_internal_set(sx1272_t* dev, sx1272_rx_mode rx) {
   }
 }
 
-/* static void sx1272_interrupt_dio0() { */ 
-/*   if (__sx1272_dev.mode == sx1272_mode_receiver */ 
-/*       || __sx1272_dev.mode == sx1272_mode_receiver_single) { */
-/*     sx1272_rx_internal_set(&__sx1272_dev, sx1272_rx_received); */
-/*     sx1272_write_register(__sx1272_dev.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_RXDONE); */
-/*   } else if (__sx1272_dev.mode == sx1272_mode_transmitter) { */
-/*     // TODO tx state */
-/*     sx1272_write_register(__sx1272_dev.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_TXDONE); */
-/*   } */
-/* } */
-/* static void sx1272_interrupt_dio1() { */ 
-/*   sx1272_write_register(__sx1272_dev.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_RXTIMEOUT); */
-/* } */
-/* static void sx1272_interrupt_dio3() { */ 
-/*   if (__sx1272_dev.mode == sx1272_mode_receiver */ 
-/*       || __sx1272_dev.mode == sx1272_mode_receiver_single) { */
-/*     sx1272_rx_internal_set(&__sx1272_dev, sx1272_rx_receiving); */
-/*     sx1272_write_register(__sx1272_dev.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_VALIDHEADER); */
-/*   } */
-/* } */
-
 static int
 sx1272_prepare(const void *payload, unsigned short payload_len) {
   LOG_DBG("Prepare %d bytes\n", payload_len);
@@ -158,12 +137,10 @@ sx1272_pending_packet(void) {
   uint8_t flags;
   flags = sx1272_read_register(SX1272_DEV.spi, REG_LR_IRQFLAGS);
   if (flags & RFLR_IRQFLAGS_RXDONE){
-    SX1272_DEV.rx_timestamp = RTIMER_NOW(); // TODO DO THIS IN INTERRUPT FOR PRECISION !!!
+    SX1272_DEV.rx_timestamp = RTIMER_NOW();
     sx1272_write_register(SX1272_DEV.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_RXDONE | RFLR_IRQFLAGS_VALIDHEADER);
     sx1272_rx_internal_set(&SX1272_DEV, sx1272_rx_received);
     LOG_DBG("Received packet\n");
-    // TODO Save the time the reception is completed
-    // TODO Do we have to copy the pending packet to packetbuf or wait for the call to packet_read
   }
 
 
