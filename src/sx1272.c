@@ -156,16 +156,6 @@ sx1272_receiving_packet(void) {
     return true;
   }
 
-  // Two methods are available to check the reception of a packet
-  // The first is MODEMSTAT register which has a 'RX on-going' section
-  // TODO Verify which one is faster
-  /* uint8_t status; */
-  /* spi_read_register(__sx1272_dev.spi, REG_LR_MODEMSTAT, &status, 1); */
-  /* if (status & (0x04 | 0x01)) { */
-  /*   sx1272_rx_internal_set(&__sx1272_dev, sx1272_rx_receiving); */
-  /* } */
-
-  // The second method is to check the IRQ flag for the CAD.
   if (sx1272_read_register(SX1272_DEV.spi, REG_LR_IRQFLAGS) & RFLR_IRQFLAGS_VALIDHEADER) {
     SX1272_DEV.receiv_timestamp = RTIMER_NOW(); // - US_TO_RTIMERTICKS(439)
     sx1272_write_register(SX1272_DEV.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_VALIDHEADER);
