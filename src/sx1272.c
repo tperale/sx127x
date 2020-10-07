@@ -101,7 +101,6 @@ sx1272_prepare(const void *payload, unsigned short payload_len) {
   sx127x_set_payload_length(&SX1272_DEV, payload_len);;
   sx1272_write_register(SX1272_DEV.spi, REG_LR_FIFOTXBASEADDR, 0);
   sx1272_write_register(SX1272_DEV.spi, REG_LR_FIFOADDRPTR, 0);
-  // TODO FIFO operations can not take place in Sleep mode
   if (SX1272_DEV.mode == sx1272_mode_sleep) {
     sx127x_set_opmode(&SX1272_DEV, sx1272_mode_standby);
   }
@@ -112,8 +111,6 @@ sx1272_prepare(const void *payload, unsigned short payload_len) {
 static int
 sx1272_transmit(unsigned short payload_len) {
   sx127x_set_opmode(&SX1272_DEV, sx1272_mode_transmitter);
-  // TODO Is it mandatory to set_opmode back to standby ?
-  // TODO timeout
   while(!(sx1272_read_register(SX1272_DEV.spi, REG_LR_IRQFLAGS) & RFLR_IRQFLAGS_TXDONE));
   sx1272_write_register(SX1272_DEV.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_TXDONE);
   sx127x_set_opmode(&SX1272_DEV, sx1272_mode_standby);
@@ -183,8 +180,6 @@ sx1272_read_packet(void *buf, unsigned short bufsize) {
   if (SX1272_DEV.rx_length < bufsize) {
     ((uint8_t*) buf)[SX1272_DEV.rx_length] = '\0';
   }
-  // TODO Put in the packet buffer already existing in Contiki (packetbuf)
-  // TODO This can be done before ?
   LOG_INFO("Received packet of %d bytes\n", SX1272_DEV.rx_length);
 
   if (SX1272_DEV.lora.rx_continuous) {
@@ -192,8 +187,6 @@ sx1272_read_packet(void *buf, unsigned short bufsize) {
     sx127x_set_opmode(&SX1272_DEV, sx1272_mode_receiver);
   } else {
     sx1272_rx_internal_set(&SX1272_DEV, sx1272_rx_off);
-    // TODO Is the following command mandatory ? 
-    // TODO Check the current OPMODE before changing it
     sx127x_set_opmode(&SX1272_DEV, sx1272_mode_standby);
   }
 
@@ -294,9 +287,6 @@ radio_result_t sx1272_get_value(radio_param_t param, radio_value_t *value){
     *value = 0;
     return RADIO_RESULT_OK;
   case RADIO_CONST_DELAY_BEFORE_TX:
-    // Delay before TX is highly variable as it depend the packet length length
-    // TODO We should in the future when turning off the module also take account
-    // of the time to turn on the module.
     *value = 0;
     switch(SX1272_SPI_BITRATE) {
       case 8000000:
@@ -310,8 +300,6 @@ radio_result_t sx1272_get_value(radio_param_t param, radio_value_t *value){
     }
     return RADIO_RESULT_OK;
   case RADIO_CONST_DELAY_BEFORE_RX:
-    // TODO This the module constraint between turning on the module and starting reception.
-    // Because we don't turn off the module this time is set to 0.
     *value = 0;
     switch(SX1272_SPI_BITRATE) {
       case 8000000:
@@ -352,7 +340,6 @@ radio_result_t sx1272_set_value(radio_param_t param, radio_value_t value){
     }
     return RADIO_RESULT_INVALID_VALUE;
   case RADIO_PARAM_CHANNEL:
-    // TODO Verify we are in sleep mode to do the modification
     switch (value) {
     case RADIO_CHANNEL_0:
       sx127x_set_channel(&SX1272_DEV, 868100000);
@@ -381,7 +368,6 @@ radio_result_t sx1272_set_value(radio_param_t param, radio_value_t value){
       return RADIO_RESULT_INVALID_VALUE;
     }
     /* Find the closest higher PA_LEVEL for the desired output power */
-    // TODO Verify we are in sleep mode
     sx127x_set_tx_power(&SX1272_DEV, value);
     return RADIO_RESULT_OK;
   case RADIO_PARAM_CCA_THRESHOLD:
@@ -475,8 +461,6 @@ int sx1272_init() {
   sx1272_reset();
 
   sx127x_set_opmode(&SX1272_DEV, sx1272_mode_sleep);
-
-  // TODO GPIO interrupt enable if used
 
   sx127x_init(&SX1272_DEV);
 
