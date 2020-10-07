@@ -13,6 +13,9 @@
 #ifndef SX1272_API_H_
 #define SX1272_API_H_
 
+#define ENERGEST_CONF_ADDITIONS SX127X_ENERGEST_SLEEP,SX127X_ENERGEST_STANDBY,SX127X_ENERGEST_TX,SX127X_ENERGEST_RX
+
+#include "sys/energest.h"
 #include <stdlib.h>
 #include "lora.h"
 #include "spi.h"

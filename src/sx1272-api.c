@@ -126,7 +126,13 @@ void sx127x_set_channel(sx1272_t* dev, uint32_t freq) {
   sx1272_write_register(dev->spi, REG_LR_FRFLSB, (uint8_t)(freq & 0xFF));
 }
 
+#define ENERGEST_SET(type) do { \
+  ENERGEST_SWITCH(energest_previous, type); \
+  energest_previous = type; \
+} while (0);
 void sx127x_set_opmode(sx1272_t* dev, sx1272_mode mode) {
+  static energest_type_t energest_previous = SX127X_ENERGEST_SLEEP;
+  (void)energest_previous;
   uint8_t opmode; 
   uint8_t previous = dev->mode;
   dev->mode = mode;
@@ -135,11 +141,13 @@ void sx127x_set_opmode(sx1272_t* dev, sx1272_mode mode) {
     case sx1272_mode_sleep:
       if (previous != mode) {
         LOG_DBG("Set op mode: SLEEP\n");
+        ENERGEST_SET(SX127X_ENERGEST_SLEEP);
       }
       break;
     case sx1272_mode_standby:
       if (previous != mode) {
         LOG_DBG("Set op mode: STANDBY\n");
+        ENERGEST_SET(SX127X_ENERGEST_STANDBY);
       }
       break;
     case sx1272_mode_synthesizer_tx:
@@ -155,6 +163,7 @@ void sx127x_set_opmode(sx1272_t* dev, sx1272_mode mode) {
     case sx1272_mode_transmitter:
       if (previous != mode) {
         LOG_DBG("Set op mode: TX\n");
+        ENERGEST_SET(SX127X_ENERGEST_TX);
       }
       /* Enable TXDONE interrupt */
       sx1272_write_register(dev->spi, REG_LR_IRQFLAGSMASK,
@@ -177,10 +186,12 @@ void sx127x_set_opmode(sx1272_t* dev, sx1272_mode mode) {
       if (dev->lora.rx_continuous) {
         if (previous != mode) {
           LOG_DBG("Set op mode: RX\n");
+          ENERGEST_SET(SX127X_ENERGEST_RX);
         }
       } else {
         if (previous != mode) {
           LOG_DBG("Set op mode: RX Single\n");
+          ENERGEST_SET(SX127X_ENERGEST_RX);
         }
       }
       sx1272_write_register(dev->spi, REG_LR_IRQFLAGSMASK, 
