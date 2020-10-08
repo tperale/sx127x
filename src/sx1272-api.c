@@ -327,23 +327,53 @@ void sx127x_set_coding_rate(sx1272_t* dev, radio_cr cr) {
   uint8_t modem1;
   modem1 = sx1272_read_register(dev->spi, REG_LR_MODEMCONFIG1);
   modem1 &= RFLR_MODEMCONFIG1_CODINGRATE_MASK;
+#if SX127X_VERSION == SX1272_VERSION
   modem1 |= (cr << 3);
+#else
+  modem1 |= (cr << 1);
+#endif
   sx1272_write_register(dev->spi, REG_LR_MODEMCONFIG1, modem1);
 }
 
 void sx127x_set_crc(sx1272_t* dev, bool crc) {
+#if SX127X_VERSION == SX1272_VERSION
   uint8_t modem1;
   modem1 = sx1272_read_register(dev->spi, REG_LR_MODEMCONFIG1);
   modem1 &= RFLR_MODEMCONFIG1_RXPAYLOADCRC_MASK;
   modem1 |= (crc << 1);
   sx1272_write_register(dev->spi, REG_LR_MODEMCONFIG1, modem1);
+#else
+  uint8_t modem2;
+  modem2 = sx1272_read_register(dev->spi, REG_LR_MODEMCONFIG2);
+  modem2 &= RFLR_MODEMCONFIG2_RXPAYLOADCRC_MASK;
+  modem2 |= (crc << 2);
+  sx1272_write_register(dev->spi, REG_LR_MODEMCONFIG2, modem2);
+#endif
+}
+
+int16_t sx127x_get_rssi(sx1272_t* dev) {
+  int16_t rssi = 0;
+#if SX127X_VERSION == SX1272_VERSION
+  rssi = SX127X_RSSI_OFFSET + sx1272_read_register(dev->spi, REG_LR_RSSIVALUE);
+#else /* MODULE_SX1276 */
+  if (dev->lora.freq > SX127X_RF_MID_BAND_THRESH) {
+    rssi = SX127X_RSSI_OFFSET_HF + sx1272_read_register(dev->spi, REG_LR_RSSIVALUE);
+  }
+  else {
+    rssi = SX127X_RSSI_OFFSET_LF + sx1272_read_register(dev->spi, REG_LR_RSSIVALUE);
+  }
+#endif
+  return rssi;
+}
+
+
+int8_t sx127x_get_snr(sx1272_t* dev) {
+  return sx1272_read_register(dev->spi, REG_LR_PKTSNRVALUE);
 }
 
 /* void sx127x_set_freq_hop(sx1272_t* dev, LORA_FREQUENCY_HOPPING_DEFAULT) { */
 /* } */
 /* void sx127x_set_hop_period(sx1272_t* dev, LORA_FREQUENCY_HOPPING_PERIOD_DEFAULT) { */
-/* } */
-/* void sx127x_set_fixed_header_len_mode(sx1272_t* dev, LORA_FIXED_HEADER_LEN_MODE_DEFAULT) { */
 /* } */
 
 void sx127x_set_iq_invert(sx1272_t* dev, bool iq) {
@@ -374,7 +404,11 @@ void sx127x_set_fixed_header_len_mode(sx1272_t* dev, bool fixed) {
   uint8_t modem1;
   modem1 = sx1272_read_register(dev->spi, REG_LR_MODEMCONFIG1);
   modem1 &= RFLR_MODEMCONFIG1_IMPLICITHEADER_MASK;
+#if SX127X_VERSION == SX1272_VERSION
   modem1 |= (fixed << 2);
+#else
+  modem1 |= fixed;
+#endif
   sx1272_write_register(dev->spi, REG_LR_MODEMCONFIG1, modem1);
 }
 

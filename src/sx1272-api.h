@@ -16,9 +16,17 @@
 #include <stdlib.h>
 #include "lora.h"
 #include "spi.h"
+#include "sx1272-reg.h"
 #include "sys/_stdint.h"
 
+#define SX127X_RF_MID_BAND_THRESH        (525000000UL)          /**< Mid-band threshold */
+
+#if SX127X_VERSION == SX1272_VERSION
 #define SX127X_RSSI_OFFSET                                 (-139)
+#else
+#define SX127X_RSSI_OFFSET_LF                              (-164)
+#define SX127X_RSSI_OFFSET_HF                              (-157)
+#endif
 
 typedef enum {
   sx1272_mode_sleep          = 0x00,
@@ -66,6 +74,8 @@ void sx127x_set_opmode(sx1272_t* dev, sx1272_mode mode);
  * @param channel Channel frequency in Hz
  */
 uint32_t sx127x_get_channel(sx1272_t* dev);
+int16_t sx127x_get_rssi(sx1272_t* dev);
+int8_t sx127x_get_snr(sx1272_t* dev);
 void sx127x_set_channel(sx1272_t* dev, uint32_t freq);
 void sx127x_set_modem(sx1272_t* dev, radio_modulating_mode modem);
 void sx127x_set_tx_power(sx1272_t* dev, radio_pwr pwr);

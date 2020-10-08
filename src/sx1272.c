@@ -169,9 +169,7 @@ sx1272_read_packet(void *buf, unsigned short bufsize) {
     return 0;
   }
 
-  SX1272_DEV.rx_snr = sx1272_read_register(SX1272_DEV.spi, REG_LR_PKTSNRVALUE);
-  uint16_t rssi = sx1272_read_register(SX1272_DEV.spi, REG_LR_PKTRSSIVALUE);
-  SX1272_DEV.rx_rssi = SX127X_RSSI_OFFSET + rssi + (rssi >> 4) + SX1272_DEV.rx_snr;
+  SX1272_DEV.rx_rssi = sx127x_get_rssi(&SX1272_DEV);
 
   SX1272_DEV.rx_length = sx1272_read_register(SX1272_DEV.spi, REG_LR_RXNBBYTES);
   uint8_t last_rx_addr = sx1272_read_register(SX1272_DEV.spi, REG_LR_FIFORXCURRENTADDR);
@@ -450,7 +448,7 @@ int sx1272_init() {
   LOG_DBG("Init SPI\n");
   spi_acquire(SX1272_DEV.spi);
 
-  if (sx127x_get_version(&SX1272_DEV) != 0x22) {
+  if (sx127x_get_version(&SX1272_DEV) != SX127X_VERSION) {
     LOG_ERR("Error communicating with the module through SPI (version not valid)\n");
     spi_release(SX1272_DEV.spi);
     return RADIO_RESULT_ERROR;
