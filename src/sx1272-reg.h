@@ -1,6 +1,14 @@
 #ifndef SX1272_REG_H_
 #define SX1272_REG_H_
 
+#define SX1272_VERSION 0x22
+#define SX1276_VERSION 0x12
+#define RFM95_VERSION  0x11
+
+#ifndef SX127X_VERSION
+#define SX127X_VERSION SX1272_VERSION
+#endif
+
 /*!
  * ============================================================================
  * SX1272 Internal registers Address
@@ -67,7 +75,11 @@
 #define REG_LR_AGCTHRESH3                           0x46
 #define REG_LR_PLLHOP                               0x4B
 #define REG_LR_TCXO                                 0x58
+#if SX127X_VERSION == SX1272_VERSION
 #define REG_LR_PADAC                                0x5A
+#else
+#define REG_LR_PADAC                                0x4D
+#endif
 #define REG_LR_PLL                                  0x5C
 #define REG_LR_PLLLOWPN                             0x5E
 #define REG_LR_FORMERTEMP                           0x6C
@@ -294,24 +306,51 @@
 /*!
  * RegModemConfig1
  */
+#if SX127X_VERSION == SX1272_VERSION
 #define RFLR_MODEMCONFIG1_BW_MASK                   0x3F
 #define RFLR_MODEMCONFIG1_BW_125_KHZ                0x00 // Default
 #define RFLR_MODEMCONFIG1_BW_250_KHZ                0x40
 #define RFLR_MODEMCONFIG1_BW_500_KHZ                0x80
+#else
+#define RFLR_MODEMCONFIG1_BW_MASK                   0x0F
+#define RFLR_MODEMCONFIG1_BW_125_KHZ                0x70 // Default
+#define RFLR_MODEMCONFIG1_BW_250_KHZ                0x80
+#define RFLR_MODEMCONFIG1_BW_500_KHZ                0x90
+#endif
 
+#if SX127X_VERSION == SX1272_VERSION
 #define RFLR_MODEMCONFIG1_CODINGRATE_MASK           0xC7
 #define RFLR_MODEMCONFIG1_CODINGRATE_4_5            0x08
 #define RFLR_MODEMCONFIG1_CODINGRATE_4_6            0x10 // Default
 #define RFLR_MODEMCONFIG1_CODINGRATE_4_7            0x18
 #define RFLR_MODEMCONFIG1_CODINGRATE_4_8            0x20
+#else
+#define RFLR_MODEMCONFIG1_CODINGRATE_MASK           0xF1
+#define RFLR_MODEMCONFIG1_CODINGRATE_4_5            0x02
+#define RFLR_MODEMCONFIG1_CODINGRATE_4_6            0x04 // Default
+#define RFLR_MODEMCONFIG1_CODINGRATE_4_7            0x06
+#define RFLR_MODEMCONFIG1_CODINGRATE_4_8            0x08
+#endif
 
+#if SX127X_VERSION == SX1272_VERSION
 #define RFLR_MODEMCONFIG1_IMPLICITHEADER_MASK       0xFB
 #define RFLR_MODEMCONFIG1_IMPLICITHEADER_ON         0x04
 #define RFLR_MODEMCONFIG1_IMPLICITHEADER_OFF        0x00 // Default
+#else
+#define RFLR_MODEMCONFIG1_IMPLICITHEADER_MASK       0xFE
+#define RFLR_MODEMCONFIG1_IMPLICITHEADER_ON         0x01
+#define RFLR_MODEMCONFIG1_IMPLICITHEADER_OFF        0x00 // Default
+#endif
 
+#if SX127X_VERSION == SX1272_VERSION
 #define RFLR_MODEMCONFIG1_RXPAYLOADCRC_MASK         0xFD
 #define RFLR_MODEMCONFIG1_RXPAYLOADCRC_ON           0x02
 #define RFLR_MODEMCONFIG1_RXPAYLOADCRC_OFF          0x00 // Default
+#else
+#define RFLR_MODEMCONFIG2_RXPAYLOADCRC_MASK         0xFB
+#define RFLR_MODEMCONFIG2_RXPAYLOADCRC_ON           0x04
+#define RFLR_MODEMCONFIG2_RXPAYLOADCRC_OFF          0x00 // Default
+#endif
 
 #define RFLR_MODEMCONFIG1_LOWDATARATEOPTIMIZE_MASK  0xFE
 #define RFLR_MODEMCONFIG1_LOWDATARATEOPTIMIZE_ON    0x01
