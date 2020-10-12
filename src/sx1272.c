@@ -95,6 +95,30 @@ static void sx1272_rx_internal_set(sx1272_t* dev, sx1272_rx_mode rx) {
   }
 }
 
+#if defined(SX127X_DIO0_PORT) && defined(SX127X_DIO0_PIN)
+static void sx1272_interrupt_dio0() { 
+  if (__sx1272_dev.mode == sx1272_mode_receiver 
+      || __sx1272_dev.mode == sx1272_mode_receiver_single) {
+    SX1272_DEV.rx_timestamp = RTIMER_NOW();
+    sx1272_rx_internal_set(&__sx1272_dev, sx1272_rx_received);
+    sx1272_write_register(__sx1272_dev.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_RXDONE);
+  } else if (__sx1272_dev.mode == sx1272_mode_transmitter) {
+    sx1272_write_register(__sx1272_dev.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_TXDONE);
+    sx127x_set_opmode(&SX1272_DEV, sx1272_mode_standby);
+  }
+}
+#endif
+#if defined(SX127X_DIO3_PORT) && defined(SX127X_DIO3_PIN)
+static void sx1272_interrupt_dio3() { 
+  if (__sx1272_dev.mode == sx1272_mode_receiver 
+      || __sx1272_dev.mode == sx1272_mode_receiver_single) {
+    SX1272_DEV.receiv_timestamp = RTIMER_NOW();
+    sx1272_rx_internal_set(&__sx1272_dev, sx1272_rx_receiving);
+    sx1272_write_register(__sx1272_dev.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_VALIDHEADER);
+  }
+}
+#endif
+
 static int
 sx1272_prepare(const void *payload, unsigned short payload_len) {
   LOG_DBG("Prepare %d bytes\n", payload_len);
@@ -111,9 +135,13 @@ sx1272_prepare(const void *payload, unsigned short payload_len) {
 static int
 sx1272_transmit(unsigned short payload_len) {
   sx127x_set_opmode(&SX1272_DEV, sx1272_mode_transmitter);
+#if defined(SX127X_DIO0_PORT) && defined(SX127X_DIO0_PIN)
+  while(SX127X_DEV.mode == sx1272_mode_transmitter);
+#else
   while(!(sx1272_read_register(SX1272_DEV.spi, REG_LR_IRQFLAGS) & RFLR_IRQFLAGS_TXDONE));
   sx1272_write_register(SX1272_DEV.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_TXDONE);
   sx127x_set_opmode(&SX1272_DEV, sx1272_mode_standby);
+#endif
   LOG_DBG("Transmit %d bytes\n", payload_len);
   return RADIO_TX_OK;
 }
@@ -127,6 +155,7 @@ sx1272_send(const void *payload, unsigned short payload_len) {
 
 static int
 sx1272_pending_packet(void) {
+#if defined(SX127X_DIO0_PORT) && defined(SX127X_DIO0_PIN)
   if (SX1272_DEV.rx == sx1272_rx_received) {
     return true;
   }
@@ -139,7 +168,7 @@ sx1272_pending_packet(void) {
     sx1272_rx_internal_set(&SX1272_DEV, sx1272_rx_received);
     LOG_DBG("Received packet\n");
   }
-
+#endif
 
   return SX1272_DEV.rx == sx1272_rx_received;
 }
@@ -153,12 +182,14 @@ sx1272_receiving_packet(void) {
     return true;
   }
 
+#if defined(SX127X_DIO3_PORT) && defined(SX127X_DIO3_PIN)
   if (sx1272_read_register(SX1272_DEV.spi, REG_LR_IRQFLAGS) & RFLR_IRQFLAGS_VALIDHEADER) {
     SX1272_DEV.receiv_timestamp = RTIMER_NOW(); // - US_TO_RTIMERTICKS(439)
     sx1272_write_register(SX1272_DEV.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_VALIDHEADER);
     sx1272_rx_internal_set(&SX1272_DEV, sx1272_rx_receiving);
     LOG_DBG("Receiving packet\n");
   }
+#endif
 
   return SX1272_DEV.rx == sx1272_rx_receiving;
 }
@@ -398,7 +429,9 @@ radio_result_t sx1272_get_object(radio_param_t param, void *dest, size_t size){
     *(rtimer_clock_t *)dest = SX1272_DEV.rx_timestamp - US_TO_RTIMERTICKS(
       t_packet(&(SX1272_DEV.lora), SX1272_DEV.rx_length)
       + 622 // Delay between TX end of transmission and RX detection of end of transmission
+#if defined(SX127X_DIO0_PORT) && defined(SX127X_DIO0_PIN)
       + 152 // Delay between interrupt on DIO1 and software detection
+#endif
     );
     return RADIO_RESULT_OK;
   case RADIO_CONST_TSCH_TIMING:
@@ -455,8 +488,16 @@ int sx1272_init() {
   }
 
   LOG_DBG("Reset Module\n");
-  /* clock_delay_usec(11000); // Wait for the POR wait time */
   sx1272_reset();
+
+#if defined(SX127X_DIO0_PORT) && defined(SX127X_DIO0_PIN)
+  GPIO_DETECT_RISING(GPIO_PORT_TO_BASE(SX127X_DIO0_PORT), GPIO_PIN_MASK(SX127X_DIO0_PIN));
+  GPIO_ENABLE_INTERRUPT(GPIO_PORT_TO_BASE(SX127X_DIO0_PORT), GPIO_PIN_MASK(SX127X_DIO0_PIN));
+#endif
+#if defined(SX127X_DIO3_PORT) && defined(SX127X_DIO3_PIN)
+  GPIO_DETECT_RISING(GPIO_PORT_TO_BASE(SX127X_DIO3_PORT), GPIO_PIN_MASK(SX127X_DIO3_PIN));
+  GPIO_ENABLE_INTERRUPT(GPIO_PORT_TO_BASE(SX127X_DIO3_PORT), GPIO_PIN_MASK(SX127X_DIO3_PIN));
+#endif
 
   sx127x_set_opmode(&SX1272_DEV, sx1272_mode_sleep);
 
