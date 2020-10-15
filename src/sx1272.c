@@ -321,7 +321,7 @@ radio_result_t sx1272_get_value(radio_param_t param, radio_value_t *value){
     }
     return RADIO_RESULT_OK;
   case RADIO_CONST_DELAY_BEFORE_DETECT:
-    *value = 3 * t_sym(SX1272_DEV.lora.sf, SX1272_DEV.lora.bw);
+    *value = US_TO_RTIMERTICKS(2 * t_sym(SX1272_DEV.lora.sf, SX1272_DEV.lora.bw));
     return RADIO_RESULT_OK;
   default:
     return RADIO_RESULT_NOT_SUPPORTED;
