@@ -104,6 +104,13 @@ void sx127x_disable_interrupts(sx1272_t* dev) {
       | RFLR_IRQFLAGS_FHSSCHANGEDCHANNEL 
       | RFLR_IRQFLAGS_CADDETECTED
   );
+
+  /* sx1272_write_register(dev->spi, REG_LR_DIOMAPPING1, */ 
+  /*   RFLR_DIOMAPPING1_DIO0_MASK */
+  /*   | RFLR_DIOMAPPING1_DIO1_MASK */
+  /*   | RFLR_DIOMAPPING1_DIO2_MASK */
+  /*   | RFLR_DIOMAPPING1_DIO3_MASK */
+  /* ); */
 }
 
 uint32_t sx127x_get_channel(sx1272_t* dev) {
@@ -206,6 +213,21 @@ void sx127x_set_opmode(sx1272_t* dev, sx1272_mode mode) {
       if (previous != mode) {
         LOG_DBG("Set op mode: CAD\n");
       }
+
+      sx1272_write_register(dev->spi, REG_LR_IRQFLAGSMASK,
+        RFLR_IRQFLAGS_RXTIMEOUT |
+        RFLR_IRQFLAGS_RXDONE |
+        RFLR_IRQFLAGS_PAYLOADCRCERROR |
+        RFLR_IRQFLAGS_VALIDHEADER |
+        RFLR_IRQFLAGS_TXDONE |
+        /* RFLR_IRQFLAGS_CADDONE | */
+        RFLR_IRQFLAGS_FHSSCHANGEDCHANNEL
+        /* RFLR_IRQFLAGS_CADDETECTED */
+      );
+      sx1272_write_register(dev->spi, REG_LR_DIOMAPPING1, 
+        RFLR_DIOMAPPING1_DIO3_MASK
+        | RFLR_DIOMAPPING1_DIO3_00
+      );
       break;
     default:
       if (previous != mode) {

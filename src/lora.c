@@ -2,14 +2,14 @@
 #include <cc.h>
 #include <math.h>
 
-int t_sym(lora_radio_t *radio)
+int t_sym(radio_sf sf, radio_bw bw)
 {
-  return (1 << radio->sf) * 1000 / radio->bw;
+  return (1 << sf) * 1000 / bw;
 }
 
 int t_preamble(lora_radio_t *radio)
 {
-  return (radio->prlen + 4) * t_sym(radio) + (t_sym(radio) / 4);
+  return (radio->prlen + 4) * t_sym(radio->sf, radio->bw) + (t_sym(radio->sf, radio->bw) / 4);
 }
 
 int payload_sym_nb(lora_radio_t *radio, size_t len)
@@ -24,7 +24,7 @@ int payload_sym_nb(lora_radio_t *radio, size_t len)
 
 int t_payload(lora_radio_t *radio, size_t len)
 {
-  return payload_sym_nb(radio, len) * t_sym(radio);
+  return payload_sym_nb(radio, len) * t_sym(radio->sf, radio->bw);
 }
 
 int t_packet(lora_radio_t *radio, size_t len)
