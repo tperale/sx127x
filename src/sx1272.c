@@ -313,7 +313,7 @@ radio_result_t sx1272_get_value(radio_param_t param, radio_value_t *value){
       case 8000000:
         *value = US_TO_RTIMERTICKS(
             71
-            + 250 // Time to set opmode RX
+            + 153 // Time to set opmode CAD
         );
         break;
       default:
@@ -400,7 +400,6 @@ radio_result_t sx1272_set_value(radio_param_t param, radio_value_t value){
 }
 
 radio_result_t sx1272_get_object(radio_param_t param, void *dest, size_t size){
-
   switch(param) {
   case RADIO_PARAM_LAST_PACKET_TIMESTAMP:
     if(size != sizeof(rtimer_clock_t) || !dest) {
