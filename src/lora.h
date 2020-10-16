@@ -908,7 +908,7 @@ typedef struct {
   bool tx_cca;
 } lora_radio_t;
 
-int t_sym(lora_radio_t *radio);
+int t_sym(radio_sf sf, radio_bw bw);
 int t_preamble(lora_radio_t *radio);
 int payload_sym_nb(lora_radio_t *radio, size_t len) ;
 int t_payload(lora_radio_t *radio, size_t len);

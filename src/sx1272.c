@@ -76,6 +76,8 @@ tsch_timeslot_timing_usec tsch_timing_sx1272 = {
   SX1272_TSCH_DEFAULT_TS_TIMESLOT_LENGTH, /* tsch_ts_timeslot_length */
 };
 
+static int sx1272_receiving_packet(void);
+
 static void sx1272_rx_internal_set(sx1272_t* dev, sx1272_rx_mode rx) {
   switch (rx) {
     case sx1272_rx_receiving:
@@ -129,6 +131,9 @@ static int
 sx1272_pending_packet(void) {
   if (SX1272_DEV.rx == sx1272_rx_received) {
     return true;
+  } else if (SX1272_DEV.rx == sx1272_rx_listening) {
+    sx1272_receiving_packet();
+    return false;
   }
 
   uint8_t flags;
@@ -153,11 +158,17 @@ sx1272_receiving_packet(void) {
     return true;
   }
 
-  if (sx1272_read_register(SX1272_DEV.spi, REG_LR_IRQFLAGS) & RFLR_IRQFLAGS_VALIDHEADER) {
+  sx127x_set_opmode(&SX1272_DEV, sx1272_mode_cad);
+
+  while ((sx1272_read_register(SX1272_DEV.spi, REG_LR_IRQFLAGS) & RFLR_IRQFLAGS_CADDONE) != RFLR_IRQFLAGS_CADDONE);
+
+  if (sx1272_read_register(SX1272_DEV.spi, REG_LR_IRQFLAGS) & RFLR_IRQFLAGS_CADDETECTED) {
     SX1272_DEV.receiv_timestamp = RTIMER_NOW(); // - US_TO_RTIMERTICKS(439)
-    sx1272_write_register(SX1272_DEV.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_VALIDHEADER);
+    sx1272_write_register(SX1272_DEV.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_CADDETECTED | RFLR_IRQFLAGS_CADDONE);
     sx1272_rx_internal_set(&SX1272_DEV, sx1272_rx_receiving);
-    LOG_DBG("Receiving packet\n");
+    sx127x_set_opmode(&SX1272_DEV, sx1272_mode_receiver);
+  } else {
+    sx1272_write_register(SX1272_DEV.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_CADDETECTED | RFLR_IRQFLAGS_CADDONE);
   }
 
   return SX1272_DEV.rx == sx1272_rx_receiving;
@@ -194,7 +205,6 @@ sx1272_read_packet(void *buf, unsigned short bufsize) {
 static int
 sx1272_on(void) {
   sx1272_rx_internal_set(&SX1272_DEV, sx1272_rx_listening);
-  sx127x_set_opmode(&SX1272_DEV, sx1272_mode_receiver);
   return 1;
 }
 
@@ -303,7 +313,7 @@ radio_result_t sx1272_get_value(radio_param_t param, radio_value_t *value){
       case 8000000:
         *value = US_TO_RTIMERTICKS(
             71
-            + 250 // Time to set opmode RX
+            + 153 // Time to set opmode CAD
         );
         break;
       default:
@@ -311,7 +321,7 @@ radio_result_t sx1272_get_value(radio_param_t param, radio_value_t *value){
     }
     return RADIO_RESULT_OK;
   case RADIO_CONST_DELAY_BEFORE_DETECT:
-    *value = US_TO_RTIMERTICKS(21560);
+    *value = US_TO_RTIMERTICKS(2 * t_sym(SX1272_DEV.lora.sf, SX1272_DEV.lora.bw));
     return RADIO_RESULT_OK;
   default:
     return RADIO_RESULT_NOT_SUPPORTED;
@@ -338,6 +348,7 @@ radio_result_t sx1272_set_value(radio_param_t param, radio_value_t value){
     }
     return RADIO_RESULT_INVALID_VALUE;
   case RADIO_PARAM_CHANNEL:
+    sx127x_set_opmode(&SX1272_DEV, sx1272_mode_sleep);
     switch (value) {
     case RADIO_CHANNEL_0:
       sx127x_set_channel(&SX1272_DEV, 868100000);
@@ -349,6 +360,7 @@ radio_result_t sx1272_set_value(radio_param_t param, radio_value_t value){
       sx127x_set_channel(&SX1272_DEV, 868500000);
       break;
     }
+    sx127x_set_opmode(&SX1272_DEV, sx1272_mode_standby);
     return RADIO_RESULT_OK;
   case RADIO_PARAM_RX_MODE:
     if(value & ~(RADIO_RX_MODE_ADDRESS_FILTER | RADIO_RX_MODE_AUTOACK | RADIO_RX_MODE_POLL_MODE)) {
@@ -388,7 +400,6 @@ radio_result_t sx1272_set_value(radio_param_t param, radio_value_t value){
 }
 
 radio_result_t sx1272_get_object(radio_param_t param, void *dest, size_t size){
-
   switch(param) {
   case RADIO_PARAM_LAST_PACKET_TIMESTAMP:
     if(size != sizeof(rtimer_clock_t) || !dest) {
@@ -455,7 +466,6 @@ int sx1272_init() {
   }
 
   LOG_DBG("Reset Module\n");
-  /* clock_delay_usec(11000); // Wait for the POR wait time */
   sx1272_reset();
 
   sx127x_set_opmode(&SX1272_DEV, sx1272_mode_sleep);
