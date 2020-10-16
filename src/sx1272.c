@@ -348,6 +348,7 @@ radio_result_t sx1272_set_value(radio_param_t param, radio_value_t value){
     }
     return RADIO_RESULT_INVALID_VALUE;
   case RADIO_PARAM_CHANNEL:
+    sx127x_set_opmode(&SX1272_DEV, sx1272_mode_sleep);
     switch (value) {
     case RADIO_CHANNEL_0:
       sx127x_set_channel(&SX1272_DEV, 868100000);
@@ -359,6 +360,7 @@ radio_result_t sx1272_set_value(radio_param_t param, radio_value_t value){
       sx127x_set_channel(&SX1272_DEV, 868500000);
       break;
     }
+    sx127x_set_opmode(&SX1272_DEV, sx1272_mode_standby);
     return RADIO_RESULT_OK;
   case RADIO_PARAM_RX_MODE:
     if(value & ~(RADIO_RX_MODE_ADDRESS_FILTER | RADIO_RX_MODE_AUTOACK | RADIO_RX_MODE_POLL_MODE)) {
@@ -465,7 +467,6 @@ int sx1272_init() {
   }
 
   LOG_DBG("Reset Module\n");
-  /* clock_delay_usec(11000); // Wait for the POR wait time */
   sx1272_reset();
 
   sx127x_set_opmode(&SX1272_DEV, sx1272_mode_sleep);
