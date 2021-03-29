@@ -33,12 +33,12 @@ spi_status_t sx1272_write_register(const spi_device_t *dev, uint8_t reg,
   spi_select(dev);
   uint8_t ret;
   if ((ret = spi_write_byte(dev, reg | 0x80)) != SPI_DEV_STATUS_OK) {
-    LOG_ERR("Error writting address %02x\n", ret);
+    LOG_ERR("Error writing address %02x\n", ret);
     return ret;
   }
 
   if ((ret = spi_write_byte(dev, data)) != SPI_DEV_STATUS_OK) {
-    LOG_ERR("Error writting data %02x\n", ret);
+    LOG_ERR("Error writing data %02x\n", ret);
     return ret;
   }
   spi_deselect(dev);
