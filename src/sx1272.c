@@ -50,7 +50,11 @@ sx1272_t __sx1272_dev = {
     .crc = true,
     .iqi = false,
     .wdt = 0,
+#if MAC_CONF_WITH_CSMA
+    .rx_continuous = true,
+#else
     .rx_continuous = false,
+#endif
     .chan = 0,
   }
 };
