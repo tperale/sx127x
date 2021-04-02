@@ -105,6 +105,8 @@
         + SX1272_TSCH_DEFAULT_TS_TX_ACK_DELAY \
         + SX1272_TSCH_DEFAULT_TS_MAX_ACK )
 
+#define CSMA_CONF_ACK_WAIT_TIME 5500
+
  extern sx1272_t __sx1272_dev;
 
 #ifdef SX1272_DEV_CONF
