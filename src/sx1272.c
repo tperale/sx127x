@@ -511,7 +511,7 @@ int sx1272_init() {
   gpio_hal_register_handler(&sx127x_event_handler_dio0);
 /* #endif */
 
-  LOG_INFO("Initialized LoRa module (ver: %d) with SF: %d, CR: %d, BW: %d, CRC: %d, PRLEN: %d, HEADER: %d\n", 
+  LOG_INFO("Initialized LoRa module (ver: %d) with SF: %d, CR: %d, BW: %d, CRC: %d, PRLEN: %ld, HEADER: %d\n", 
       ver, 
       SX1272_DEV.lora.sf, 
       SX1272_DEV.lora.cr, 
