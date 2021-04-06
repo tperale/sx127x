@@ -53,16 +53,16 @@ sx1272_t __sx1272_dev = {
     .crc = true,
     .iqi = false,
     .wdt = 0,
-#if MAC_CONF_WITH_CSMA
-    .rx_continuous = true,
-#else
+#if MAC_CONF_WITH_TSCH
     .rx_continuous = false,
+#else
+    .rx_continuous = true,
 #endif
     .chan = 0,
   }
 };
 
- int tsch_packet_duration(size_t len)
+int tsch_packet_duration(size_t len)
 {
   return US_TO_RTIMERTICKS(t_packet(&(SX1272_DEV.lora), len));
 } 
@@ -84,6 +84,7 @@ tsch_timeslot_timing_usec tsch_timing_sx1272 = {
 };
 
 static int sx1272_receiving_packet(void);
+static int sx1272_read_packet(void *buf, unsigned short bufsize);
 
 static void sx1272_rx_internal_set(sx1272_t* dev, sx1272_rx_mode rx) {
   switch (rx) {
@@ -94,9 +95,11 @@ static void sx1272_rx_internal_set(sx1272_t* dev, sx1272_rx_mode rx) {
       dev->rx = sx1272_rx_receiving;
       break;
     case sx1272_rx_received:
+#if MAC_CONF_WITH_TSCH
       if (dev->rx != sx1272_rx_receiving) {
         LOG_WARN("[rx_state] Went to 'received' without 'receiving'\n");
       }
+#endif
       dev->rx = sx1272_rx_received;
       break;
     default:
@@ -108,16 +111,21 @@ static void sx1272_rx_internal_set(sx1272_t* dev, sx1272_rx_mode rx) {
 #define SX127X_DIO0_PORT_BASE GPIO_PORT_TO_BASE(SX127X_DIO0_PORT)
 #define SX127X_DIO0_PIN_MASK GPIO_PIN_MASK(SX127X_DIO0_PIN)
 static void sx127x_interrupt_dio0(gpio_hal_pin_mask_t pin_mask) { 
-  if (__sx1272_dev.mode == sx1272_mode_receiver 
-      || __sx1272_dev.mode == sx1272_mode_receiver_single) {
+  if (__sx1272_dev.mode == sx1272_mode_receiver || __sx1272_dev.mode == sx1272_mode_receiver_single) {
     SX1272_DEV.rx_timestamp = RTIMER_NOW();
     sx1272_rx_internal_set(&__sx1272_dev, sx1272_rx_received);
-    sx1272_write_register(__sx1272_dev.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_RXDONE);
-  } else if (__sx1272_dev.mode == sx1272_mode_transmitter) {
-    sx1272_write_register(__sx1272_dev.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_TXDONE);
-    sx127x_set_opmode(&SX1272_DEV, sx1272_mode_standby);
+    if (__sx1272_dev.lora.rx_continuous) {
+      packetbuf_clear();
+      int len = sx1272_read_register(SX1272_DEV.spi, REG_LR_RXNBBYTES);
+
+      if(len > 0 && len != 3) {
+        sx1272_read_packet(packetbuf_dataptr(), PACKETBUF_SIZE);
+        packetbuf_set_datalen(len);
+        NETSTACK_MAC.input();
+      }
+    }
+    sx127x_disable_interrupts(&SX1272_DEV);
   }
-  sx127x_disable_interrupts(&SX1272_DEV);
 }
 
 gpio_hal_event_handler_t sx127x_event_handler_dio0 = {
@@ -133,8 +141,9 @@ sx1272_prepare(const void *payload, unsigned short payload_len) {
   sx127x_set_payload_length(&SX1272_DEV, payload_len);;
   sx1272_write_register(SX1272_DEV.spi, REG_LR_FIFOTXBASEADDR, 0);
   sx1272_write_register(SX1272_DEV.spi, REG_LR_FIFOADDRPTR, 0);
-  if (SX1272_DEV.mode == sx1272_mode_sleep) {
+  if (SX1272_DEV.mode == sx1272_mode_sleep || SX1272_DEV.mode == sx1272_mode_receiver) {
     sx127x_set_opmode(&SX1272_DEV, sx1272_mode_standby);
+    sx1272_rx_internal_set(&__sx1272_dev, sx1272_rx_off);
   }
   sx1272_write_fifo(SX1272_DEV.spi, (uint8_t*) payload, payload_len);
   return RADIO_RESULT_OK;
@@ -143,9 +152,14 @@ sx1272_prepare(const void *payload, unsigned short payload_len) {
 static int
 sx1272_transmit(unsigned short payload_len) {
   sx127x_set_opmode(&SX1272_DEV, sx1272_mode_transmitter);
+  
   while(!(sx1272_read_register(SX1272_DEV.spi, REG_LR_IRQFLAGS) & RFLR_IRQFLAGS_TXDONE));
   sx1272_write_register(SX1272_DEV.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_TXDONE);
   sx127x_set_opmode(&SX1272_DEV, sx1272_mode_standby);
+  if (SX1272_DEV.lora.rx_continuous) {
+    sx1272_rx_internal_set(&SX1272_DEV, sx1272_rx_listening);
+    sx127x_set_opmode(&SX1272_DEV, sx1272_mode_receiver);
+  }
   LOG_DBG("Transmit %d bytes\n", payload_len);
   return RADIO_TX_OK;
 }
@@ -159,6 +173,7 @@ sx1272_send(const void *payload, unsigned short payload_len) {
 
 static int
 sx1272_pending_packet(void) {
+#if MAC_CONF_WITH_TSCH
   if (SX1272_DEV.rx == sx1272_rx_received) {
     return true;
   } else if (SX1272_DEV.rx == sx1272_rx_listening) {
@@ -174,7 +189,7 @@ sx1272_pending_packet(void) {
     sx1272_rx_internal_set(&SX1272_DEV, sx1272_rx_received);
     LOG_DBG("Received packet\n");
   }
-
+#endif
 
   return SX1272_DEV.rx == sx1272_rx_received;
 }
@@ -238,7 +253,6 @@ static int
 sx1272_on(void) {
   sx1272_rx_internal_set(&SX1272_DEV, sx1272_rx_listening);
 #if !MAC_CONF_WITH_TSCH
-    sx1272_rx_internal_set(&SX1272_DEV, sx1272_rx_listening);
     sx127x_set_opmode(&SX1272_DEV, sx1272_mode_receiver);
 #endif
   return 1;
@@ -250,7 +264,6 @@ sx1272_off(void) {
 #if !MAC_CONF_WITH_TSCH
   sx127x_disable_interrupts(&SX1272_DEV);
   sx1272_rx_internal_set(&SX1272_DEV, sx1272_rx_off);
-  sx127x_set_opmode(&SX1272_DEV, sx1272_mode_standby);
 #endif
   return 1;
 }

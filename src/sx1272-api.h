@@ -73,6 +73,7 @@ void sx127x_set_opmode(sx1272_t* dev, sx1272_mode mode);
  *
  * @param channel Channel frequency in Hz
  */
+void sx127x_disable_interrupts(sx1272_t *dev);
 uint32_t sx127x_get_channel(sx1272_t* dev);
 int16_t sx127x_get_rssi(sx1272_t* dev);
 int8_t sx127x_get_snr(sx1272_t* dev);
