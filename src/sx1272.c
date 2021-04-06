@@ -15,6 +15,7 @@
 #include "dev/leds.h"
 #include "dev/gpio-hal.h"
 #include "net/mac/tsch/tsch.h"
+#include <stdint.h>
 
 #define LOG_MODULE "SX1272"
 #ifndef LOG_CONF_LEVEL_SX1272
@@ -490,8 +491,9 @@ int sx1272_init() {
   LOG_DBG("Init SPI\n");
   spi_acquire(SX1272_DEV.spi);
 
-  if (sx127x_get_version(&SX1272_DEV) != SX127X_VERSION) {
-    LOG_ERR("Error communicating with the module through SPI (version not valid)\n");
+  uint8_t ver;
+  if ((ver = sx127x_get_version(&SX1272_DEV)) != SX127X_VERSION) {
+    LOG_ERR("Error communicating with the module through SPI (invalid version: %d)\n", ver);
     spi_release(SX1272_DEV.spi);
     return RADIO_RESULT_ERROR;
   }
@@ -508,6 +510,16 @@ int sx1272_init() {
   GPIO_ENABLE_INTERRUPT(SX127X_DIO0_PORT, SX127X_DIO0_PIN);
   gpio_hal_register_handler(&sx127x_event_handler_dio0);
 /* #endif */
+
+  LOG_INFO("Initialized LoRa module (ver: %d) with SF: %d, CR: %d, BW: %d, CRC: %d, PRLEN: %d, HEADER: %d\n", 
+      ver, 
+      SX1272_DEV.lora.sf, 
+      SX1272_DEV.lora.cr, 
+      SX1272_DEV.lora.bw, 
+      SX1272_DEV.lora.crc,
+      SX1272_DEV.lora.prlen,
+      SX1272_DEV.lora.implicit_header
+  );
 
   return RADIO_RESULT_OK;
 }
