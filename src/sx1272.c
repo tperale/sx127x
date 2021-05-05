@@ -53,7 +53,7 @@ sx1272_t __sx1272_dev = {
     .crc = true,
     .iqi = false,
     .wdt = 0,
-#if MAC_CONF_WITH_TSCH
+#if SX127X_BUSY_RX 
     .rx_continuous = false,
 #else
     .rx_continuous = true,
@@ -95,7 +95,7 @@ static void sx1272_rx_internal_set(sx1272_t* dev, sx1272_rx_mode rx) {
       dev->rx = sx1272_rx_receiving;
       break;
     case sx1272_rx_received:
-#if MAC_CONF_WITH_TSCH
+#if SX127X_BUSY_RX
       if (dev->rx != sx1272_rx_receiving) {
         LOG_WARN("[rx_state] Went to 'received' without 'receiving'\n");
       }
@@ -173,7 +173,7 @@ sx1272_send(const void *payload, unsigned short payload_len) {
 
 static int
 sx1272_pending_packet(void) {
-#if MAC_CONF_WITH_TSCH
+#if SX127X_BUSY_RX
   if (SX1272_DEV.rx == sx1272_rx_received) {
     return true;
   } else if (SX1272_DEV.rx == sx1272_rx_listening) {
@@ -203,7 +203,7 @@ sx1272_receiving_packet(void) {
     return true;
   }
 
-#if MAC_CONF_WITH_TSCH
+#if SX127X_BUSY_RX
   sx127x_set_opmode(&SX1272_DEV, sx1272_mode_cad);
 
   while ((sx1272_read_register(SX1272_DEV.spi, REG_LR_IRQFLAGS) & RFLR_IRQFLAGS_CADDONE) != RFLR_IRQFLAGS_CADDONE);
@@ -252,7 +252,7 @@ sx1272_read_packet(void *buf, unsigned short bufsize) {
 static int
 sx1272_on(void) {
   sx1272_rx_internal_set(&SX1272_DEV, sx1272_rx_listening);
-#if !MAC_CONF_WITH_TSCH
+#if !SX127X_BUSY_RX
     sx127x_set_opmode(&SX1272_DEV, sx1272_mode_receiver);
 #endif
   return 1;
@@ -261,7 +261,7 @@ sx1272_on(void) {
 static int
 sx1272_off(void) {
   sx127x_set_opmode(&SX1272_DEV, sx1272_mode_standby);
-#if !MAC_CONF_WITH_TSCH
+#if SX127X_BUSY_RX
   sx127x_disable_interrupts(&SX1272_DEV);
   sx1272_rx_internal_set(&SX1272_DEV, sx1272_rx_off);
 #endif
@@ -527,6 +527,7 @@ int sx1272_init() {
 
   sx127x_init(&SX1272_DEV);
 
+#if !SX127X_BUSY_RX
 #if defined(SX127X_DIO0_PORT) && defined(SX127X_DIO0_PIN)
   GPIO_SOFTWARE_CONTROL(SX127X_DIO0_PORT_BASE, SX127X_DIO0_PIN_MASK);
   GPIO_SET_INPUT(SX127X_DIO0_PORT_BASE, SX127X_DIO0_PIN_MASK);
@@ -538,6 +539,7 @@ int sx1272_init() {
 
   GPIO_ENABLE_INTERRUPT(SX127X_DIO0_PORT_BASE, SX127X_DIO0_PIN_MASK);
   NVIC_EnableIRQ(GPIO_B_IRQn);
+#endif
 #endif
 
   LOG_INFO("Initialized LoRa module (ver: %d) with SF: %d, CR: %d, BW: %d, CRC: %d, PRLEN: %ld, HEADER: %d\n", 

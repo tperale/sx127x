@@ -6,6 +6,12 @@
 #include "dev/spi.h"
 #include "sx1272-api.h"
 
+#ifdef SX127X_CONF_BUSY_RX
+#define SX127X_BUSY_RX SX127X_CONF_BUSY_RX
+#else
+#define SX127X_BUSY_RX MAC_CONF_WITH_TSCH 
+#endif
+
 #ifdef SX1272_SPI_SCK_PORT_CONF
 #define SX1272_SPI_SCK_PORT SX1272_SPI_SCK_PORT_CONF
 #else
