@@ -107,9 +107,21 @@ static void sx1272_rx_internal_set(sx1272_t* dev, sx1272_rx_mode rx) {
   }
 }
 
-#if defined(SX127X_DIO0_PORT) && defined(SX127X_DIO0_PIN)
+#if SX127X_USE_INTERRUPT
 #define SX127X_DIO0_PORT_BASE GPIO_PORT_TO_BASE(SX127X_DIO0_PORT)
 #define SX127X_DIO0_PIN_MASK GPIO_PIN_MASK(SX127X_DIO0_PIN)
+#define SX127X_DIO3_PORT_BASE GPIO_PORT_TO_BASE(SX127X_DIO3_PORT)
+#define SX127X_DIO3_PIN_MASK GPIO_PIN_MASK(SX127X_DIO3_PIN)
+
+#if SX127X_CONF_BUSY_RX
+static void sx127x_interrupt_dio0(gpio_hal_pin_mask_t pin_mask) { 
+  if (__sx1272_dev.mode == sx1272_mode_receiver || __sx1272_dev.mode == sx1272_mode_receiver_single) {
+    SX1272_DEV.rx_timestamp = RTIMER_NOW();
+    sx1272_rx_internal_set(&__sx1272_dev, sx1272_rx_received);
+    sx127x_disable_interrupts(&SX1272_DEV);
+  }
+}
+#else
 static void sx127x_interrupt_dio0(gpio_hal_pin_mask_t pin_mask) { 
   if (__sx1272_dev.mode == sx1272_mode_receiver || __sx1272_dev.mode == sx1272_mode_receiver_single) {
     SX1272_DEV.rx_timestamp = RTIMER_NOW();
@@ -127,11 +139,23 @@ static void sx127x_interrupt_dio0(gpio_hal_pin_mask_t pin_mask) {
     sx127x_disable_interrupts(&SX1272_DEV);
   }
 }
+#endif
+
+static void sx127x_interrupt_dio3(gpio_hal_pin_mask_t pin_mask) { 
+  SX1272_DEV.receiv_timestamp = RTIMER_NOW();
+  sx1272_rx_internal_set(&__sx1272_dev, sx1272_rx_receiving);
+  sx1272_write_register(SX1272_DEV.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_VALIDHEADER | RFLR_IRQFLAGS_CADDETECTED | RFLR_IRQFLAGS_CADDONE);
+}
 
 gpio_hal_event_handler_t sx127x_event_handler_dio0 = {
   .next = NULL,
   .handler = sx127x_interrupt_dio0,
   .pin_mask  = (gpio_hal_pin_to_mask(SX127X_DIO0_PIN) << (SX127X_DIO0_PORT << 3))
+};
+gpio_hal_event_handler_t sx127x_event_handler_dio3 = {
+  .next = NULL,
+  .handler = sx127x_interrupt_dio3,
+  .pin_mask  = (gpio_hal_pin_to_mask(SX127X_DIO3_PIN) << (SX127X_DIO3_PORT << 3))
 };
 #endif
 
@@ -173,7 +197,7 @@ sx1272_send(const void *payload, unsigned short payload_len) {
 
 static int
 sx1272_pending_packet(void) {
-#if SX127X_BUSY_RX
+#if !SX127X_USE_INTERRUPT
   if (SX1272_DEV.rx == sx1272_rx_received) {
     return true;
   } else if (SX1272_DEV.rx == sx1272_rx_listening) {
@@ -196,6 +220,9 @@ sx1272_pending_packet(void) {
 
 static int
 sx1272_receiving_packet(void) {
+#if SX127X_BUSY_RX
+#if SX127X_USE_INTERRUPT
+#else
   if (SX1272_DEV.rx == sx1272_rx_receiving) {
     if (sx1272_pending_packet()) {
       return false;
@@ -203,9 +230,7 @@ sx1272_receiving_packet(void) {
     return true;
   }
 
-#if SX127X_BUSY_RX
   sx127x_set_opmode(&SX1272_DEV, sx1272_mode_cad);
-
   while ((sx1272_read_register(SX1272_DEV.spi, REG_LR_IRQFLAGS) & RFLR_IRQFLAGS_CADDONE) != RFLR_IRQFLAGS_CADDONE);
 
   if (sx1272_read_register(SX1272_DEV.spi, REG_LR_IRQFLAGS) & RFLR_IRQFLAGS_CADDETECTED) {
@@ -216,6 +241,7 @@ sx1272_receiving_packet(void) {
   } else {
     sx1272_write_register(SX1272_DEV.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_CADDETECTED | RFLR_IRQFLAGS_CADDONE);
   }
+#endif
 #endif
 
   return SX1272_DEV.rx == sx1272_rx_receiving;
@@ -253,6 +279,8 @@ static int
 sx1272_on(void) {
   sx1272_rx_internal_set(&SX1272_DEV, sx1272_rx_listening);
 #if !SX127X_BUSY_RX
+    sx127x_set_opmode(&SX1272_DEV, sx1272_mode_receiver);
+#elif SX127X_USE_INTERRUPT
     sx127x_set_opmode(&SX1272_DEV, sx1272_mode_receiver);
 #endif
   return 1;
@@ -527,8 +555,7 @@ int sx1272_init() {
 
   sx127x_init(&SX1272_DEV);
 
-#if !SX127X_BUSY_RX
-#if defined(SX127X_DIO0_PORT) && defined(SX127X_DIO0_PIN)
+#if SX127X_USE_INTERRUPT
   GPIO_SOFTWARE_CONTROL(SX127X_DIO0_PORT_BASE, SX127X_DIO0_PIN_MASK);
   GPIO_SET_INPUT(SX127X_DIO0_PORT_BASE, SX127X_DIO0_PIN_MASK);
   GPIO_DETECT_EDGE(SX127X_DIO0_PORT_BASE, SX127X_DIO0_PIN_MASK);
@@ -536,10 +563,18 @@ int sx1272_init() {
   GPIO_TRIGGER_SINGLE_EDGE(SX127X_DIO0_PORT_BASE, SX127X_DIO0_PIN_MASK);
   ioc_set_over(SX127X_DIO0_PORT, SX127X_DIO0_PIN, IOC_OVERRIDE_DIS);
   gpio_hal_register_handler(&sx127x_event_handler_dio0);
-
   GPIO_ENABLE_INTERRUPT(SX127X_DIO0_PORT_BASE, SX127X_DIO0_PIN_MASK);
+
+  GPIO_SOFTWARE_CONTROL(SX127X_DIO3_PORT_BASE, SX127X_DIO3_PIN_MASK);
+  GPIO_SET_INPUT(SX127X_DIO3_PORT_BASE, SX127X_DIO3_PIN_MASK);
+  GPIO_DETECT_EDGE(SX127X_DIO3_PORT_BASE, SX127X_DIO3_PIN_MASK);
+  GPIO_DETECT_RISING(SX127X_DIO3_PORT_BASE, SX127X_DIO3_PIN_MASK);
+  GPIO_TRIGGER_SINGLE_EDGE(SX127X_DIO3_PORT_BASE, SX127X_DIO3_PIN_MASK);
+  ioc_set_over(SX127X_DIO3_PORT, SX127X_DIO3_PIN, IOC_OVERRIDE_DIS);
+  gpio_hal_register_handler(&sx127x_event_handler_dio3);
+  GPIO_ENABLE_INTERRUPT(SX127X_DIO3_PORT_BASE, SX127X_DIO3_PIN_MASK);
+
   NVIC_EnableIRQ(GPIO_B_IRQn);
-#endif
 #endif
 
   LOG_INFO("Initialized LoRa module (ver: %d) with SF: %d, CR: %d, BW: %d, CRC: %d, PRLEN: %ld, HEADER: %d\n", 
@@ -551,6 +586,7 @@ int sx1272_init() {
       SX1272_DEV.lora.prlen,
       SX1272_DEV.lora.implicit_header
   );
+  LOG_INFO("LoRa driver working with busy RX: %d and interrupt: %d\n", SX127X_BUSY_RX, SX127X_USE_INTERRUPT);
 
   return RADIO_RESULT_OK;
 }
