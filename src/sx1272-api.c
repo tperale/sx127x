@@ -211,7 +211,7 @@ void sx127x_set_opmode(sx1272_t *dev, sx1272_mode mode) {
                               RFLR_IRQFLAGS_VALIDHEADER | RFLR_IRQFLAGS_TXDONE |
                               /* RFLR_IRQFLAGS_CADDONE | */
                               RFLR_IRQFLAGS_FHSSCHANGEDCHANNEL
-                          /* RFLR_IRQFLAGS_CADDETECTED */
+                              /* RFLR_IRQFLAGS_CADDETECTED */
     );
     sx1272_write_register(dev->spi, REG_LR_DIOMAPPING1,
                           RFLR_DIOMAPPING1_DIO3_MASK |
