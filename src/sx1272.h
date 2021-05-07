@@ -6,22 +6,6 @@
 #include "dev/spi.h"
 #include "sx1272-api.h"
 
-#ifdef SX127X_CONF_BUSY_RX
-#define SX127X_BUSY_RX SX127X_CONF_BUSY_RX
-#else
-#ifndef MAC_CONF_WITH_CSMA
-#define SX127X_BUSY_RX 1
-#else
-#define SX127X_BUSY_RX 0
-#endif
-#endif
-
-#if defined(SX127X_DIO0_PORT) && defined(SX127X_DIO0_PIN) && defined(SX127X_DIO3_PORT) && defined(SX127X_DIO3_PIN)
-#define SX127X_USE_INTERRUPT 1
-#else
-#define SX127X_USE_INTERRUPT 0
-#endif
-
 #ifdef SX1272_SPI_SCK_PORT_CONF
 #define SX1272_SPI_SCK_PORT SX1272_SPI_SCK_PORT_CONF
 #else
@@ -126,6 +110,22 @@
 #define SX127X_DIO3_PIN SX127X_DIO3_PIN_CONF 
 #else
 #define SX127X_DIO3_PIN 0
+#endif
+
+#ifdef SX127X_CONF_BUSY_RX
+#define SX127X_BUSY_RX SX127X_CONF_BUSY_RX
+#else
+#ifndef MAC_CONF_WITH_CSMA
+#define SX127X_BUSY_RX 1
+#else
+#define SX127X_BUSY_RX 0
+#endif
+#endif
+
+#if defined(SX127X_DIO0_PORT) && defined(SX127X_DIO0_PIN) && defined(SX127X_DIO3_PORT) && defined(SX127X_DIO3_PIN)
+#define SX127X_USE_INTERRUPT 1
+#else
+#define SX127X_USE_INTERRUPT 0
 #endif
 
 #ifdef SX127X_LORA_INIT_SF_CONF
