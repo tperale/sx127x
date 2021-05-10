@@ -44,6 +44,7 @@ typedef enum {
   sx1272_rx_listening,
   sx1272_rx_receiving,
   sx1272_rx_received,
+  sx1272_rx_read,
 } sx1272_rx_mode;
 
 typedef struct {
@@ -56,6 +57,7 @@ typedef struct {
     lora_radio_t lora;
     sx1272_mode mode;
     sx1272_rx_mode rx;
+    uint8_t pending;
     uint8_t packet[256];
 } sx1272_t;
 

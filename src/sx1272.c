@@ -41,6 +41,8 @@ sx1272_t __sx1272_dev = {
   .rx_rssi = 0,
   .rx_snr = 0,
   .rx_length = 0,
+  .rx = sx1272_rx_off,
+  .pending = false,
   .lora = {
     .mod = RADIO_MODULATING_LORA,
     .freq = 868100000,
@@ -100,7 +102,14 @@ static void sx1272_rx_internal_set(sx1272_t* dev, sx1272_rx_mode rx) {
         LOG_WARN("[rx_state] Went to 'received' without 'receiving'\n");
       }
 #endif
+      dev->pending = true;
       dev->rx = sx1272_rx_received;
+      break;
+    case sx1272_rx_read:
+      if (!dev->pending) {
+        LOG_WARN("[rx_state] read the content of the module without packet pending\n");
+      }
+      dev->pending = false;
       break;
     default:
       dev->rx = rx;
@@ -113,20 +122,17 @@ static void sx1272_rx_internal_set(sx1272_t* dev, sx1272_rx_mode rx) {
 #define SX127X_DIO3_PORT_BASE GPIO_PORT_TO_BASE(SX127X_DIO3_PORT)
 #define SX127X_DIO3_PIN_MASK GPIO_PIN_MASK(SX127X_DIO3_PIN)
 
-#if SX127X_CONF_BUSY_RX
+#if SX127X_BUSY_RX
 static void sx127x_interrupt_dio0(gpio_hal_pin_mask_t pin_mask) { 
-  if (__sx1272_dev.mode == sx1272_mode_receiver || __sx1272_dev.mode == sx1272_mode_receiver_single) {
-    SX1272_DEV.rx_timestamp = RTIMER_NOW();
-    sx1272_rx_internal_set(&__sx1272_dev, sx1272_rx_received);
-    sx127x_disable_interrupts(&SX1272_DEV);
-  }
+}
+static void sx127x_interrupt_dio3(gpio_hal_pin_mask_t pin_mask) { 
 }
 #else
 static void sx127x_interrupt_dio0(gpio_hal_pin_mask_t pin_mask) { 
-  if (__sx1272_dev.mode == sx1272_mode_receiver || __sx1272_dev.mode == sx1272_mode_receiver_single) {
+  if (SX1272_DEV.mode == sx1272_mode_receiver || SX1272_DEV.mode == sx1272_mode_receiver_single) {
     SX1272_DEV.rx_timestamp = RTIMER_NOW();
     sx1272_rx_internal_set(&__sx1272_dev, sx1272_rx_received);
-    if (__sx1272_dev.lora.rx_continuous) {
+    if (SX1272_DEV.lora.rx_continuous) {
       packetbuf_clear();
       int len = sx1272_read_register(SX1272_DEV.spi, REG_LR_RXNBBYTES);
 
@@ -139,13 +145,21 @@ static void sx127x_interrupt_dio0(gpio_hal_pin_mask_t pin_mask) {
     sx127x_disable_interrupts(&SX1272_DEV);
   }
 }
-#endif
 
 static void sx127x_interrupt_dio3(gpio_hal_pin_mask_t pin_mask) { 
-  SX1272_DEV.receiv_timestamp = RTIMER_NOW();
-  sx1272_rx_internal_set(&__sx1272_dev, sx1272_rx_receiving);
-  sx1272_write_register(SX1272_DEV.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_VALIDHEADER | RFLR_IRQFLAGS_CADDETECTED | RFLR_IRQFLAGS_CADDONE);
+  if (SX1272_DEV.mode == sx1272_mode_receiver || SX1272_DEV.mode == sx1272_mode_receiver_single) {
+    if (SX1272_DEV.rx != sx1272_rx_receiving) {
+      SX1272_DEV.receiv_timestamp = RTIMER_NOW();
+      sx1272_rx_internal_set(&SX1272_DEV, sx1272_rx_receiving);
+    }
+    sx1272_write_register(SX1272_DEV.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_VALIDHEADER);
+  } else if (SX1272_DEV.mode == sx1272_mode_cad) {
+    // CAD Done
+    /* sx127x_disable_interrupts(&SX1272_DEV); */
+    /* sx1272_write_register(SX1272_DEV.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_CADDETECTED | RFLR_IRQFLAGS_CADDONE); */
+  }
 }
+#endif
 
 gpio_hal_event_handler_t sx127x_event_handler_dio0 = {
   .next = NULL,
@@ -176,7 +190,6 @@ sx1272_prepare(const void *payload, unsigned short payload_len) {
 static int
 sx1272_transmit(unsigned short payload_len) {
   sx127x_set_opmode(&SX1272_DEV, sx1272_mode_transmitter);
-  
   while(!(sx1272_read_register(SX1272_DEV.spi, REG_LR_IRQFLAGS) & RFLR_IRQFLAGS_TXDONE));
   sx1272_write_register(SX1272_DEV.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_TXDONE);
   sx127x_set_opmode(&SX1272_DEV, sx1272_mode_standby);
@@ -197,7 +210,7 @@ sx1272_send(const void *payload, unsigned short payload_len) {
 
 static int
 sx1272_pending_packet(void) {
-#if !SX127X_USE_INTERRUPT
+#if SX127X_BUSY_RX 
   if (SX1272_DEV.rx == sx1272_rx_received) {
     return true;
   } else if (SX1272_DEV.rx == sx1272_rx_listening) {
@@ -215,14 +228,12 @@ sx1272_pending_packet(void) {
   }
 #endif
 
-  return SX1272_DEV.rx == sx1272_rx_received;
+  return SX1272_DEV.pending;
 }
 
 static int
 sx1272_receiving_packet(void) {
 #if SX127X_BUSY_RX
-#if SX127X_USE_INTERRUPT
-#else
   if (SX1272_DEV.rx == sx1272_rx_receiving) {
     if (sx1272_pending_packet()) {
       return false;
@@ -241,7 +252,6 @@ sx1272_receiving_packet(void) {
   } else {
     sx1272_write_register(SX1272_DEV.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_CADDETECTED | RFLR_IRQFLAGS_CADDONE);
   }
-#endif
 #endif
 
   return SX1272_DEV.rx == sx1272_rx_receiving;
@@ -263,7 +273,7 @@ sx1272_read_packet(void *buf, unsigned short bufsize) {
     ((uint8_t*) buf)[SX1272_DEV.rx_length] = '\0';
   }
   LOG_INFO("Received packet of %d bytes\n", SX1272_DEV.rx_length);
-
+  sx1272_rx_internal_set(&SX1272_DEV, sx1272_rx_read);
   if (SX1272_DEV.lora.rx_continuous) {
     sx1272_rx_internal_set(&SX1272_DEV, sx1272_rx_listening);
     sx127x_set_opmode(&SX1272_DEV, sx1272_mode_receiver);
@@ -279,9 +289,12 @@ static int
 sx1272_on(void) {
   sx1272_rx_internal_set(&SX1272_DEV, sx1272_rx_listening);
 #if !SX127X_BUSY_RX
-    sx127x_set_opmode(&SX1272_DEV, sx1272_mode_receiver);
-#elif SX127X_USE_INTERRUPT
-    sx127x_set_opmode(&SX1272_DEV, sx1272_mode_receiver);
+  // In busy reception mode the RX is triggered with a CAD 
+  // scan that is faster to detect the packet than the DIO3 
+  // interrupt for the valid header
+  // In async reception mode the reception notification will come
+  // from the interrupt.
+  sx127x_set_opmode(&SX1272_DEV, sx1272_mode_receiver);
 #endif
   return 1;
 }
@@ -289,10 +302,8 @@ sx1272_on(void) {
 static int
 sx1272_off(void) {
   sx127x_set_opmode(&SX1272_DEV, sx1272_mode_standby);
-#if SX127X_BUSY_RX
-  sx127x_disable_interrupts(&SX1272_DEV);
   sx1272_rx_internal_set(&SX1272_DEV, sx1272_rx_off);
-#endif
+  sx127x_disable_interrupts(&SX1272_DEV);
   return 1;
 }
 
@@ -412,7 +423,7 @@ radio_result_t sx1272_get_value(radio_param_t param, radio_value_t *value){
   return RADIO_RESULT_OK;
 }
 
-  /** Set a radio parameter value. */
+/** Set a radio parameter value. */
 radio_result_t sx1272_set_value(radio_param_t param, radio_value_t value){
   switch(param) {
   case RADIO_PARAM_POWER_MODE:
@@ -445,6 +456,7 @@ radio_result_t sx1272_set_value(radio_param_t param, radio_value_t value){
     sx127x_set_opmode(&SX1272_DEV, sx1272_mode_standby);
     return RADIO_RESULT_OK;
   case RADIO_PARAM_RX_MODE:
+    return RADIO_RESULT_OK;
     if(value & ~(RADIO_RX_MODE_ADDRESS_FILTER | RADIO_RX_MODE_AUTOACK | RADIO_RX_MODE_POLL_MODE)) {
       return RADIO_RESULT_INVALID_VALUE;
     }
@@ -555,7 +567,7 @@ int sx1272_init() {
 
   sx127x_init(&SX1272_DEV);
 
-#if SX127X_USE_INTERRUPT
+#if !SX127X_BUSY_RX
   GPIO_SOFTWARE_CONTROL(SX127X_DIO0_PORT_BASE, SX127X_DIO0_PIN_MASK);
   GPIO_SET_INPUT(SX127X_DIO0_PORT_BASE, SX127X_DIO0_PIN_MASK);
   GPIO_DETECT_EDGE(SX127X_DIO0_PORT_BASE, SX127X_DIO0_PIN_MASK);
