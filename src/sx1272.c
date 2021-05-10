@@ -221,7 +221,7 @@ sx1272_pending_packet(void) {
   uint8_t flags;
   flags = sx1272_read_register(SX1272_DEV.spi, REG_LR_IRQFLAGS);
   if (flags & RFLR_IRQFLAGS_RXDONE){
-    SX1272_DEV.rx_timestamp = RTIMER_NOW();
+    SX1272_DEV.rx_timestamp = RTIMER_NOW() - US_TO_RTIMERTICKS(650);
     sx1272_write_register(SX1272_DEV.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_RXDONE | RFLR_IRQFLAGS_VALIDHEADER);
     sx1272_rx_internal_set(&SX1272_DEV, sx1272_rx_received);
     LOG_DBG("Received packet\n");
