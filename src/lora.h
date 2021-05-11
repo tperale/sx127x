@@ -908,6 +908,20 @@ typedef struct {
   bool tx_cca;
 } lora_radio_t;
 
+#define CEILING_POS(X) ((X-(int)(X)) > 0 ? (int)(X+1) : (int)(X))
+#define LORA_T_SYM(sf, bw) ((1 << (sf)) * 1000 / (bw))
+#define LORA_T_PREAMBLE(sf, bw, prlen) (((prlen) + 4) * LORA_T_SYM((sf), (bw)) + (LORA_T_SYM((sf), (bw)) / 4))
+#define LORA_SYM_NB(sf, crc, implicit_header, cr, len) ( \
+  8 + MAX( \
+    CEILING_POS((float) ( (8 * (len)) - (4 * (sf)) + 28 + (16 * (crc)) - (20 * (implicit_header)) ) / (4 * (sf))) \
+    * ((cr) + 4), \
+    0 \
+  ) \
+)
+#define LORA_T_PACKET(sf, bw, crc, implicit_header, cr, prlen, len) ( \
+  LORA_T_PREAMBLE(sf, bw, prlen) + (LORA_SYM_NB(sf, crc, implicit_header, cr, len) * LORA_T_SYM(sf, bw)) \
+)
+
 int t_sym(radio_sf sf, radio_bw bw);
 int t_preamble(lora_radio_t *radio);
 int payload_sym_nb(lora_radio_t *radio, size_t len) ;
