@@ -15,6 +15,7 @@
 #include "dev/leds.h"
 #include "dev/gpio-hal.h"
 #include "net/mac/tsch/tsch.h"
+#include "watchdog.h"
 #include <stdint.h>
 
 #define LOG_MODULE "SX1272"
@@ -190,7 +191,7 @@ sx1272_prepare(const void *payload, unsigned short payload_len) {
 static int
 sx1272_transmit(unsigned short payload_len) {
   sx127x_set_opmode(&SX1272_DEV, sx1272_mode_transmitter);
-  while(!(sx1272_read_register(SX1272_DEV.spi, REG_LR_IRQFLAGS) & RFLR_IRQFLAGS_TXDONE));
+  while(!(sx1272_read_register(SX1272_DEV.spi, REG_LR_IRQFLAGS) & RFLR_IRQFLAGS_TXDONE)) watchdog_periodic();
   sx1272_write_register(SX1272_DEV.spi, REG_LR_IRQFLAGS, RFLR_IRQFLAGS_TXDONE);
   sx127x_set_opmode(&SX1272_DEV, sx1272_mode_standby);
   if (SX1272_DEV.lora.rx_continuous) {
@@ -599,6 +600,15 @@ int sx1272_init() {
       SX1272_DEV.lora.implicit_header
   );
   LOG_INFO("LoRa driver working with busy RX: %d and interrupt: %d\n", SX127X_BUSY_RX, SX127X_USE_INTERRUPT);
+#ifdef MAC_CONF_WITH_TSCH
+  LOG_INFO("TX_OFFSET: %d\n", SX1272_TSCH_DEFAULT_TS_TX_OFFSET);
+  LOG_INFO("RX_OFFSET: %d\n", SX1272_TSCH_DEFAULT_TS_RX_OFFSET);
+  LOG_INFO("TX_ACK_DELAY: %d\n", SX1272_TSCH_DEFAULT_TS_TX_ACK_DELAY);
+  LOG_INFO("RX_ACK_DELAY: %d\n", SX1272_TSCH_DEFAULT_TS_RX_ACK_DELAY);
+  LOG_INFO("MAX_TX: %d\n", SX1272_TSCH_DEFAULT_TS_MAX_TX);
+  LOG_INFO("MAX_ACK: %d\n", SX1272_TSCH_DEFAULT_TS_MAX_ACK);
+#endif
+
 
   return RADIO_RESULT_OK;
 }
