@@ -20,15 +20,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define LOG_MODULE "SX1272-API"
-#ifndef LOG_CONF_LEVEL_SX1272_API
-#define LOG_CONF_LEVEL_SX1272_API LOG_LEVEL_INFO
+#define LOG_MODULE "SX127X-API"
+#ifndef LOG_CONF_LEVEL_SX127X_API
+#define LOG_CONF_LEVEL_SX127X_API LOG_LEVEL_INFO
 #endif
-#define LOG_LEVEL LOG_CONF_LEVEL_SX1272_API
+#define LOG_LEVEL LOG_CONF_LEVEL_SX127X_API
 
 #define FREQ_STEP (61.03515625)
 
-spi_status_t sx1272_write_register(const spi_device_t *dev, uint8_t reg,
+spi_status_t sx127x_write_register(const spi_device_t *dev, uint8_t reg,
                                    uint8_t data) {
   spi_select(dev);
   uint8_t ret;
@@ -46,7 +46,7 @@ spi_status_t sx1272_write_register(const spi_device_t *dev, uint8_t reg,
   return SPI_DEV_STATUS_OK;
 }
 
-spi_status_t sx1272_write_fifo(const spi_device_t *dev, uint8_t *data,
+spi_status_t sx127x_write_fifo(const spi_device_t *dev, uint8_t *data,
                                uint16_t len) {
   spi_select(dev);
   spi_write_byte(dev, REG_LR_FIFO | 0x80);
@@ -56,7 +56,7 @@ spi_status_t sx1272_write_fifo(const spi_device_t *dev, uint8_t *data,
   return SPI_DEV_STATUS_OK;
 }
 
-spi_status_t sx1272_read_fifo(const spi_device_t *dev, uint8_t *out,
+spi_status_t sx127x_read_fifo(const spi_device_t *dev, uint8_t *out,
                               uint16_t len) {
   spi_select(dev);
   spi_write_byte(dev, REG_LR_FIFO);
@@ -66,7 +66,7 @@ spi_status_t sx1272_read_fifo(const spi_device_t *dev, uint8_t *out,
   return SPI_DEV_STATUS_OK;
 }
 
-uint8_t sx1272_read_register(const spi_device_t *dev, uint8_t reg) {
+uint8_t sx127x_read_register(const spi_device_t *dev, uint8_t reg) {
   spi_select(dev);
   uint8_t ret;
   spi_read_register(dev, reg, &ret, 1);
@@ -75,7 +75,7 @@ uint8_t sx1272_read_register(const spi_device_t *dev, uint8_t reg) {
   return ret;
 }
 
-/* static spi_status_t sx1272_read_register(const spi_device_t *dev, uint8_t
+/* static spi_status_t sx127x_read_register(const spi_device_t *dev, uint8_t
  * reg, uint8_t* data) { */
 /*   uint8_t ret; */
 /*   if ((ret = spi_select(dev)) != SPI_DEV_STATUS_OK) { */
@@ -94,15 +94,15 @@ uint8_t sx1272_read_register(const spi_device_t *dev, uint8_t reg) {
 /*   return SPI_DEV_STATUS_OK; */
 /* } */
 
-void sx127x_disable_interrupts(sx1272_t *dev) {
-  sx1272_write_register(
+void sx127x_disable_interrupts(semtech_dev_t *dev) {
+  sx127x_write_register(
       dev->spi, REG_LR_IRQFLAGSMASK,
       RFLR_IRQFLAGS_RXTIMEOUT | RFLR_IRQFLAGS_RXDONE |
           RFLR_IRQFLAGS_PAYLOADCRCERROR | RFLR_IRQFLAGS_VALIDHEADER |
           RFLR_IRQFLAGS_TXDONE | RFLR_IRQFLAGS_CADDONE |
           RFLR_IRQFLAGS_FHSSCHANGEDCHANNEL | RFLR_IRQFLAGS_CADDETECTED);
 
-  /* sx1272_write_register(dev->spi, REG_LR_DIOMAPPING1, */
+  /* sx127x_write_register(dev->spi, REG_LR_DIOMAPPING1, */
   /*   RFLR_DIOMAPPING1_DIO0_MASK */
   /*   | RFLR_DIOMAPPING1_DIO1_MASK */
   /*   | RFLR_DIOMAPPING1_DIO2_MASK */
@@ -110,59 +110,59 @@ void sx127x_disable_interrupts(sx1272_t *dev) {
   /* ); */
 }
 
-uint32_t sx127x_get_channel(sx1272_t *dev) {
+uint32_t sx127x_get_channel(semtech_dev_t *dev) {
   uint8_t msb;
   uint8_t mid;
   uint8_t lsb;
 
-  msb = sx1272_read_register(dev->spi, REG_LR_FRFMSB);
-  mid = sx1272_read_register(dev->spi, REG_LR_FRFMID);
-  lsb = sx1272_read_register(dev->spi, REG_LR_FRFLSB);
+  msb = sx127x_read_register(dev->spi, REG_LR_FRFMSB);
+  mid = sx127x_read_register(dev->spi, REG_LR_FRFMID);
+  lsb = sx127x_read_register(dev->spi, REG_LR_FRFLSB);
   uint32_t temp = ((uint32_t)(msb << 16) | (mid << 8) | lsb);
   return (uint32_t)(((double)temp) * ((double)FREQ_STEP));
 }
 
-void sx127x_set_channel(sx1272_t *dev, uint32_t freq) {
+void sx127x_set_channel(semtech_dev_t *dev, uint32_t freq) {
   dev->lora.freq = freq;
   freq = (uint32_t)((double)freq / (double)FREQ_STEP);
-  sx1272_write_register(dev->spi, REG_LR_FRFMSB,
+  sx127x_write_register(dev->spi, REG_LR_FRFMSB,
                         (uint8_t)((freq >> 16) & 0xFF));
-  sx1272_write_register(dev->spi, REG_LR_FRFMID, (uint8_t)((freq >> 8) & 0xFF));
-  sx1272_write_register(dev->spi, REG_LR_FRFLSB, (uint8_t)(freq & 0xFF));
+  sx127x_write_register(dev->spi, REG_LR_FRFMID, (uint8_t)((freq >> 8) & 0xFF));
+  sx127x_write_register(dev->spi, REG_LR_FRFLSB, (uint8_t)(freq & 0xFF));
 }
 
-void sx127x_set_opmode(sx1272_t *dev, sx1272_mode mode) {
+void sx127x_set_opmode(semtech_dev_t *dev, sx127x_mode mode) {
   uint8_t opmode;
   uint8_t previous = dev->mode;
   dev->mode = mode;
 
   switch (dev->mode) {
-  case sx1272_mode_sleep:
+  case sx127x_mode_sleep:
     if (previous != mode) {
       LOG_DBG("Set op mode: SLEEP\n");
     }
     break;
-  case sx1272_mode_standby:
+  case sx127x_mode_standby:
     if (previous != mode) {
       LOG_DBG("Set op mode: STANDBY\n");
     }
     break;
-  case sx1272_mode_synthesizer_tx:
+  case sx127x_mode_synthesizer_tx:
     if (previous != mode) {
       LOG_DBG("Set op mode: SYNTHESIZER TX\n");
     }
     break;
-  case sx1272_mode_synthesizer_rx:
+  case sx127x_mode_synthesizer_rx:
     if (previous != mode) {
       LOG_DBG("Set op mode: SYNTHESIZER RX\n");
     }
     break;
-  case sx1272_mode_transmitter:
+  case sx127x_mode_transmitter:
     if (previous != mode) {
       LOG_DBG("Set op mode: TX\n");
     }
     /* Enable TXDONE interrupt */
-    sx1272_write_register(
+    sx127x_write_register(
         dev->spi, REG_LR_IRQFLAGSMASK,
         RFLR_IRQFLAGS_RXTIMEOUT | RFLR_IRQFLAGS_RXDONE |
             RFLR_IRQFLAGS_PAYLOADCRCERROR | RFLR_IRQFLAGS_VALIDHEADER |
@@ -171,11 +171,11 @@ void sx127x_set_opmode(sx1272_t *dev, sx1272_mode mode) {
             RFLR_IRQFLAGS_CADDETECTED);
 
     /* Set TXDONE interrupt to the DIO0 line */
-    sx1272_write_register(dev->spi, REG_LR_DIOMAPPING1,
+    sx127x_write_register(dev->spi, REG_LR_DIOMAPPING1,
                           RFLR_DIOMAPPING1_DIO0_01);
     break;
-  case sx1272_mode_receiver:
-  case sx1272_mode_receiver_single:
+  case sx127x_mode_receiver:
+  case sx127x_mode_receiver_single:
     if (dev->lora.rx_continuous) {
       if (previous != mode) {
         LOG_DBG("Set op mode: RX\n");
@@ -185,7 +185,7 @@ void sx127x_set_opmode(sx1272_t *dev, sx1272_mode mode) {
         LOG_DBG("Set op mode: RX Single\n");
       }
     }
-    sx1272_write_register(dev->spi, REG_LR_IRQFLAGSMASK,
+    sx127x_write_register(dev->spi, REG_LR_IRQFLAGSMASK,
                           /* RFLR_IRQFLAGS_RXTIMEOUT */
                           /* | RFLR_IRQFLAGS_RXDONE */
                           /* | RFLR_IRQFLAGS_PAYLOADCRCERROR */
@@ -194,18 +194,18 @@ void sx127x_set_opmode(sx1272_t *dev, sx1272_mode mode) {
                               RFLR_IRQFLAGS_FHSSCHANGEDCHANNEL |
                               RFLR_IRQFLAGS_CADDETECTED);
     /* Set RXDONE interrupt to the DIO0 line */
-    sx1272_write_register(dev->spi, REG_LR_DIOMAPPING1,
+    sx127x_write_register(dev->spi, REG_LR_DIOMAPPING1,
                           RFLR_DIOMAPPING1_DIO0_00 | RFLR_DIOMAPPING1_DIO1_00 |
                               RFLR_DIOMAPPING1_DIO3_01);
-    sx1272_write_register(dev->spi, REG_LR_FIFORXBASEADDR, 0);
-    sx1272_write_register(dev->spi, REG_LR_FIFOADDRPTR, 0);
+    sx127x_write_register(dev->spi, REG_LR_FIFORXBASEADDR, 0);
+    sx127x_write_register(dev->spi, REG_LR_FIFOADDRPTR, 0);
     break;
-  case sx1272_mode_cad:
+  case sx127x_mode_cad:
     if (previous != mode) {
       LOG_DBG("Set op mode: CAD\n");
     }
 
-    sx1272_write_register(dev->spi, REG_LR_IRQFLAGSMASK,
+    sx127x_write_register(dev->spi, REG_LR_IRQFLAGSMASK,
                           RFLR_IRQFLAGS_RXTIMEOUT | RFLR_IRQFLAGS_RXDONE |
                               RFLR_IRQFLAGS_PAYLOADCRCERROR |
                               RFLR_IRQFLAGS_VALIDHEADER | RFLR_IRQFLAGS_TXDONE |
@@ -213,7 +213,7 @@ void sx127x_set_opmode(sx1272_t *dev, sx1272_mode mode) {
                               RFLR_IRQFLAGS_FHSSCHANGEDCHANNEL
                               /* RFLR_IRQFLAGS_CADDETECTED */
     );
-    sx1272_write_register(dev->spi, REG_LR_DIOMAPPING1,
+    sx127x_write_register(dev->spi, REG_LR_DIOMAPPING1,
                           RFLR_DIOMAPPING1_DIO3_MASK |
                               RFLR_DIOMAPPING1_DIO3_00);
     break;
@@ -224,24 +224,24 @@ void sx127x_set_opmode(sx1272_t *dev, sx1272_mode mode) {
     return;
   }
 
-  opmode = sx1272_read_register(dev->spi, REG_LR_OPMODE);
-  sx1272_write_register(dev->spi, REG_LR_OPMODE,
+  opmode = sx127x_read_register(dev->spi, REG_LR_OPMODE);
+  sx127x_write_register(dev->spi, REG_LR_OPMODE,
                         (opmode & RFLR_OPMODE_MASK) | mode);
 }
 
-void sx127x_set_modem(sx1272_t *dev, radio_modulating_mode modem) {
+void sx127x_set_modem(semtech_dev_t *dev, radio_modulating_mode modem) {
   switch (modem) {
   default:
   case RADIO_MODULATING_LORA: {
     uint8_t opmode;
-    opmode = sx1272_read_register(dev->spi, REG_LR_OPMODE);
+    opmode = sx127x_read_register(dev->spi, REG_LR_OPMODE);
     LOG_DBG("OPMODE: %02x\n", opmode);
-    sx1272_write_register(
+    sx127x_write_register(
         dev->spi, REG_LR_OPMODE,
         (opmode & RFLR_OPMODE_LONGRANGEMODE_MASK) |
             RFLR_OPMODE_LONGRANGEMODE_ON); // MOSI: 0x81 --> MISO: 0x8F
-    sx1272_write_register(dev->spi, REG_LR_DIOMAPPING1, 0x00);
-    sx1272_write_register(dev->spi, REG_LR_DIOMAPPING2, 0x00);
+    sx127x_write_register(dev->spi, REG_LR_DIOMAPPING1, 0x00);
+    sx127x_write_register(dev->spi, REG_LR_DIOMAPPING2, 0x00);
     break;
   }
   case RADIO_MODULATING_FSK:
@@ -252,13 +252,13 @@ void sx127x_set_modem(sx1272_t *dev, radio_modulating_mode modem) {
 }
 
 // TODO improve because the use of PABOOST is not clear
-void sx127x_set_tx_power(sx1272_t *dev, radio_pwr pwr) {
+void sx127x_set_tx_power(semtech_dev_t *dev, radio_pwr pwr) {
   int8_t power = pwr;
   uint8_t pa_config;
   uint8_t pa_dac;
 
-  pa_config = sx1272_read_register(dev->spi, REG_LR_PACONFIG);
-  pa_dac = sx1272_read_register(dev->spi, REG_LR_PADAC);
+  pa_config = sx127x_read_register(dev->spi, REG_LR_PACONFIG);
+  pa_dac = sx127x_read_register(dev->spi, REG_LR_PADAC);
 
   pa_config =
       (pa_config & RFLR_PACONFIG_PASELECT_MASK) | RFLR_PACONFIG_PASELECT_RFO;
@@ -301,16 +301,16 @@ void sx127x_set_tx_power(sx1272_t *dev, radio_pwr pwr) {
                 (uint8_t)((uint16_t)(power + 1) & 0x0F);
   }
 
-  sx1272_write_register(dev->spi, REG_LR_PACONFIG, pa_config);
-  sx1272_write_register(dev->spi, REG_LR_PADAC, pa_dac);
+  sx127x_write_register(dev->spi, REG_LR_PACONFIG, pa_config);
+  sx127x_write_register(dev->spi, REG_LR_PADAC, pa_dac);
 }
 
-void sx127x_set_bandwidth(sx1272_t *dev, radio_bw bw) {
+void sx127x_set_bandwidth(semtech_dev_t *dev, radio_bw bw) {
   uint8_t modem1;
 
   dev->lora.bw = bw;
 
-  modem1 = sx1272_read_register(dev->spi, REG_LR_MODEMCONFIG1);
+  modem1 = sx127x_read_register(dev->spi, REG_LR_MODEMCONFIG1);
   modem1 &= RFLR_MODEMCONFIG1_BW_MASK;
 
   switch (bw) {
@@ -324,121 +324,121 @@ void sx127x_set_bandwidth(sx1272_t *dev, radio_bw bw) {
     modem1 |= RFLR_MODEMCONFIG1_BW_500_KHZ;
     break;
   }
-  sx1272_write_register(dev->spi, REG_LR_MODEMCONFIG1, modem1);
+  sx127x_write_register(dev->spi, REG_LR_MODEMCONFIG1, modem1);
 }
 
-void sx127x_set_spreading_factor(sx1272_t *dev, radio_sf sf) {
+void sx127x_set_spreading_factor(semtech_dev_t *dev, radio_sf sf) {
   if (sf < 7 || sf > 12) {
     LOG_ERR("SF%d is not supported by this driver\n", sf);
   }
 
   uint8_t modem2;
-  modem2 = sx1272_read_register(dev->spi, REG_LR_MODEMCONFIG2);
+  modem2 = sx127x_read_register(dev->spi, REG_LR_MODEMCONFIG2);
   modem2 &= RFLR_MODEMCONFIG2_SF_MASK;
   modem2 |= (sf << 4);
-  sx1272_write_register(dev->spi, REG_LR_MODEMCONFIG2, modem2);
+  sx127x_write_register(dev->spi, REG_LR_MODEMCONFIG2, modem2);
 }
 
-void sx127x_set_coding_rate(sx1272_t *dev, radio_cr cr) {
+void sx127x_set_coding_rate(semtech_dev_t *dev, radio_cr cr) {
   uint8_t modem1;
-  modem1 = sx1272_read_register(dev->spi, REG_LR_MODEMCONFIG1);
+  modem1 = sx127x_read_register(dev->spi, REG_LR_MODEMCONFIG1);
   modem1 &= RFLR_MODEMCONFIG1_CODINGRATE_MASK;
 #if SX127X_VERSION == SX1272_VERSION
   modem1 |= (cr << 3);
 #else
   modem1 |= (cr << 1);
 #endif
-  sx1272_write_register(dev->spi, REG_LR_MODEMCONFIG1, modem1);
+  sx127x_write_register(dev->spi, REG_LR_MODEMCONFIG1, modem1);
 }
 
-void sx127x_set_crc(sx1272_t *dev, bool crc) {
+void sx127x_set_crc(semtech_dev_t *dev, bool crc) {
 #if SX127X_VERSION == SX1272_VERSION
   uint8_t modem1;
-  modem1 = sx1272_read_register(dev->spi, REG_LR_MODEMCONFIG1);
+  modem1 = sx127x_read_register(dev->spi, REG_LR_MODEMCONFIG1);
   modem1 &= RFLR_MODEMCONFIG1_RXPAYLOADCRC_MASK;
   modem1 |= (crc << 1);
-  sx1272_write_register(dev->spi, REG_LR_MODEMCONFIG1, modem1);
+  sx127x_write_register(dev->spi, REG_LR_MODEMCONFIG1, modem1);
 #else
   uint8_t modem2;
-  modem2 = sx1272_read_register(dev->spi, REG_LR_MODEMCONFIG2);
+  modem2 = sx127x_read_register(dev->spi, REG_LR_MODEMCONFIG2);
   modem2 &= RFLR_MODEMCONFIG2_RXPAYLOADCRC_MASK;
   modem2 |= (crc << 2);
-  sx1272_write_register(dev->spi, REG_LR_MODEMCONFIG2, modem2);
+  sx127x_write_register(dev->spi, REG_LR_MODEMCONFIG2, modem2);
 #endif
 }
 
-int16_t sx127x_get_rssi(sx1272_t *dev) {
+int16_t sx127x_get_rssi(semtech_dev_t *dev) {
   int16_t rssi = 0;
 #if SX127X_VERSION == SX1272_VERSION
-  rssi = SX127X_RSSI_OFFSET + sx1272_read_register(dev->spi, REG_LR_RSSIVALUE);
+  rssi = SX127X_RSSI_OFFSET + sx127x_read_register(dev->spi, REG_LR_RSSIVALUE);
 #else /* MODULE_SX1276 */
   if (dev->lora.freq > SX127X_RF_MID_BAND_THRESH) {
     rssi = SX127X_RSSI_OFFSET_HF +
-           sx1272_read_register(dev->spi, REG_LR_RSSIVALUE);
+           sx127x_read_register(dev->spi, REG_LR_RSSIVALUE);
   } else {
     rssi = SX127X_RSSI_OFFSET_LF +
-           sx1272_read_register(dev->spi, REG_LR_RSSIVALUE);
+           sx127x_read_register(dev->spi, REG_LR_RSSIVALUE);
   }
 #endif
   return rssi;
 }
 
-int8_t sx127x_get_snr(sx1272_t *dev) {
-  return sx1272_read_register(dev->spi, REG_LR_PKTSNRVALUE);
+int8_t sx127x_get_snr(semtech_dev_t *dev) {
+  return sx127x_read_register(dev->spi, REG_LR_PKTSNRVALUE);
 }
 
-/* void sx127x_set_freq_hop(sx1272_t* dev, LORA_FREQUENCY_HOPPING_DEFAULT) { */
+/* void sx127x_set_freq_hop(sx127x_t* dev, LORA_FREQUENCY_HOPPING_DEFAULT) { */
 /* } */
-/* void sx127x_set_hop_period(sx1272_t* dev,
+/* void sx127x_set_hop_period(sx127x_t* dev,
  * LORA_FREQUENCY_HOPPING_PERIOD_DEFAULT) { */
 /* } */
 
-void sx127x_set_iq_invert(sx1272_t *dev, bool iq) {
+void sx127x_set_iq_invert(semtech_dev_t *dev, bool iq) {
   uint8_t prev;
-  prev = sx1272_read_register(dev->spi, REG_LR_INVERTIQ);
-  sx1272_write_register(dev->spi, REG_LR_INVERTIQ,
+  prev = sx127x_read_register(dev->spi, REG_LR_INVERTIQ);
+  sx127x_write_register(dev->spi, REG_LR_INVERTIQ,
                         (prev & RFLR_INVERTIQ_RX_MASK & RFLR_INVERTIQ_TX_MASK) |
                             RFLR_INVERTIQ_RX_OFF |
                             (iq ? RFLR_INVERTIQ_TX_ON : RFLR_INVERTIQ_TX_OFF));
-  sx1272_write_register(dev->spi, REG_LR_INVERTIQ2,
+  sx127x_write_register(dev->spi, REG_LR_INVERTIQ2,
                         (iq ? RFLR_INVERTIQ2_ON : RFLR_INVERTIQ2_OFF));
 }
 
-void sx127x_set_payload_length(sx1272_t *dev, uint8_t length) {
-  sx1272_write_register(dev->spi, REG_LR_PAYLOADLENGTH, length);
+void sx127x_set_payload_length(semtech_dev_t *dev, uint8_t length) {
+  sx127x_write_register(dev->spi, REG_LR_PAYLOADLENGTH, length);
 }
 
-void sx127x_set_preamble_length(sx1272_t *dev, uint16_t length) {
+void sx127x_set_preamble_length(semtech_dev_t *dev, uint16_t length) {
   dev->lora.prlen = length;
-  sx1272_write_register(dev->spi, REG_LR_PREAMBLEMSB, (length >> 8) & 0xFF);
-  sx1272_write_register(dev->spi, REG_LR_PREAMBLELSB, length & 0xFF);
+  sx127x_write_register(dev->spi, REG_LR_PREAMBLEMSB, (length >> 8) & 0xFF);
+  sx127x_write_register(dev->spi, REG_LR_PREAMBLELSB, length & 0xFF);
 }
 
-void sx127x_set_fixed_header_len_mode(sx1272_t *dev, bool fixed) {
+void sx127x_set_fixed_header_len_mode(semtech_dev_t *dev, bool fixed) {
   dev->lora.implicit_header = fixed;
 
   uint8_t modem1;
-  modem1 = sx1272_read_register(dev->spi, REG_LR_MODEMCONFIG1);
+  modem1 = sx127x_read_register(dev->spi, REG_LR_MODEMCONFIG1);
   modem1 &= RFLR_MODEMCONFIG1_IMPLICITHEADER_MASK;
 #if SX127X_VERSION == SX1272_VERSION
   modem1 |= (fixed << 2);
 #else
   modem1 |= fixed;
 #endif
-  sx1272_write_register(dev->spi, REG_LR_MODEMCONFIG1, modem1);
+  sx127x_write_register(dev->spi, REG_LR_MODEMCONFIG1, modem1);
 }
 
-void sx127x_set_symbol_timeout(sx1272_t *dev, uint8_t timeout) {}
+void sx127x_set_symbol_timeout(semtech_dev_t *dev, uint8_t timeout) {}
 
-uint8_t sx127x_get_version(sx1272_t *dev) {
+uint8_t sx127x_get_version(semtech_dev_t *dev) {
   uint8_t version;
   /* spi_read_register(dev->spi, REG_LR_VERSION, &version, 1); */
-  version = sx1272_read_register(dev->spi, REG_LR_VERSION);
+  version = sx127x_read_register(dev->spi, REG_LR_VERSION);
   LOG_DBG("VERSION: 0x%02X\n", version);
   return version;
 }
 
-void sx127x_init(sx1272_t *dev) {
+void sx127x_init(semtech_dev_t *dev) {
   sx127x_set_modem(dev, dev->lora.mod);
   sx127x_set_channel(dev, dev->lora.freq);
   /* sx127x_set_tx_power(dev, dev->lora.pwr); */
