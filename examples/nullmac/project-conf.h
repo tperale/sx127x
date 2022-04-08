@@ -12,7 +12,7 @@
 
 #include <stddef.h>
 
-#define NETSTACK_CONF_RADIO                        sx1272_radio_driver
+#define NETSTACK_CONF_RADIO sx127x_radio_driver
 
 extern int tsch_packet_duration(size_t len); 
 #define TSCH_PACKET_DURATION(len) tsch_packet_duration(len) 

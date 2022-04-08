@@ -50,7 +50,7 @@
 /******************* NETSTACK       ********************/
 /*******************************************************/
 
-#define NETSTACK_CONF_RADIO sx1272_radio_driver
+#define NETSTACK_CONF_RADIO sx127x_radio_driver
 #define TSCH_CONF_DEFAULT_HOPPING_SEQUENCE (uint8_t[]){ 0, 1, 2 }
 extern int tsch_packet_duration(size_t len); 
 #define TSCH_PACKET_DURATION(len) tsch_packet_duration(len) 

@@ -1,14 +1,14 @@
 CONTIKI_PROJECT = test-sx1272
-
 all: $(CONTIKI_PROJECT)
 
-PLATFORMS_ONLY = zoul
+TARGET = zoul
+BOARD = remote-revb
 
 ROOT = ../..
 CONTIKI = $(ROOT)/contiki-ng
 
 include $(CONTIKI)/Makefile.dir-variables
-MODULES += $(ROOT)/src/ # SX127X Driver
+MODULES += ../src/ # SX127X Driver
 MODULES += $(CONTIKI_NG_SERVICES_DIR)/shell
 CFLAGS += -I/usr/arm-none-eabi/include
 
