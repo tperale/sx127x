@@ -189,6 +189,5 @@ extern semtech_dev_t __sx127x_dev;
 #define SX127X_DEV __sx127x_dev
 #endif 
 
-extern semtech_dev_t __sx127x_dev;
 extern const struct radio_driver sx127x_radio_driver;
 #endif
